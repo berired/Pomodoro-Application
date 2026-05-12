@@ -66,7 +66,7 @@ export default function ClassDetailModal({ classItem, onClose, onUpdate, onDelet
   }
 
   return (
-    <dialog id="class-detail-dialog" className="w-full max-w-2xl rounded-3xl border bg-white p-0 text-black backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={onClose}>
+    <dialog id="class-detail-dialog" className="fixed inset-0 m-auto h-fit w-full max-w-2xl rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={onClose}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>

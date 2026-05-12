@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { X } from 'lucide-react'
+import { CheckCircle, ChevronRight, Loader2, X } from 'lucide-react'
 import { ACCENT_COLOR } from '@/lib/constants'
 
 interface ProfileSettingsProps {
@@ -20,28 +20,48 @@ interface ProfileSettingsProps {
 
 const editProfileSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
-  username: z.string().min(3, 'Username must be at least 3 characters').regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers, and underscores'),
+  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers, and underscores'),
   school: z.string().optional(),
-  canvasToken: z.string().optional(),
-  canvasDomain: z.string().optional(),
 })
 
 const changePasswordSchema = z.object({
   oldPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string().min(1, 'Confirm your password'),
-}).refine((values) => values.newPassword === values.confirmPassword, {
+  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine((v) => v.newPassword === v.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
 })
 
+const canvasSchema = z.object({
+  domain: z.string().min(1, 'Canvas domain is required'),
+  token: z.string().min(1, 'Access token is required'),
+})
+
 type EditProfileValues = z.infer<typeof editProfileSchema>
 type ChangePasswordValues = z.infer<typeof changePasswordSchema>
+type CanvasValues = z.infer<typeof canvasSchema>
+
+const CANVAS_STEPS = [
+  { step: 1, label: 'Log in to Canvas', detail: 'Open your school\'s Canvas site in your browser.' },
+  { step: 2, label: 'Go to Account → Settings', detail: 'Click your profile picture (top-left) → Settings.' },
+  { step: 3, label: 'Scroll to Approved Integrations', detail: 'Find the "Approved Integrations" section near the bottom of the page.' },
+  { step: 4, label: 'Click "+ New Access Token"', detail: 'Enter a purpose like "Pomodoro App" and leave expiry blank for permanent access.' },
+  { step: 5, label: 'Copy the token', detail: 'Canvas shows the token once — copy it now and paste it below.' },
+]
 
 export default function ProfileSettings({ initialProfile }: ProfileSettingsProps): React.JSX.Element {
-  const [statusMessage, setStatusMessage] = useState<string | null>(null)
-  const editDialogRef = useRef<HTMLDialogElement>(null)
-  const passwordDialogRef = useRef<HTMLDialogElement>(null)
+  const [profileMsg, setProfileMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [passwordMsg, setPasswordMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [canvasDomain, setCanvasDomain] = useState(initialProfile.canvas_domain)
+  const [verifiedUser, setVerifiedUser] = useState<{ name: string; email: string } | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyError, setVerifyError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const editRef = useRef<HTMLDialogElement>(null)
+  const passwordRef = useRef<HTMLDialogElement>(null)
+  const canvasRef = useRef<HTMLDialogElement>(null)
 
   const editForm = useForm<EditProfileValues>({
     resolver: zodResolver(editProfileSchema),
@@ -49,8 +69,6 @@ export default function ProfileSettings({ initialProfile }: ProfileSettingsProps
       fullName: initialProfile.name,
       username: initialProfile.username,
       school: initialProfile.school ?? '',
-      canvasToken: '',
-      canvasDomain: initialProfile.canvas_domain ?? '',
     },
   })
 
@@ -58,154 +76,291 @@ export default function ProfileSettings({ initialProfile }: ProfileSettingsProps
     resolver: zodResolver(changePasswordSchema),
   })
 
-  function openEditDialog(): void {
-    setStatusMessage(null)
-    editDialogRef.current?.showModal()
+  const canvasForm = useForm<CanvasValues>({
+    resolver: zodResolver(canvasSchema),
+    defaultValues: { domain: initialProfile.canvas_domain ?? '', token: '' },
+  })
+
+  function openCanvas(): void {
+    setVerifiedUser(null)
+    setVerifyError(null)
+    canvasForm.reset({ domain: canvasDomain ?? '', token: '' })
+    canvasRef.current?.showModal()
   }
 
-  function openPasswordDialog(): void {
-    setStatusMessage(null)
-    passwordDialogRef.current?.showModal()
+  async function handleVerify(): Promise<void> {
+    const values = canvasForm.getValues()
+    if (!values.domain || !values.token) {
+      canvasForm.trigger()
+      return
+    }
+    setVerifying(true)
+    setVerifyError(null)
+    setVerifiedUser(null)
+    try {
+      const res = await fetch('/api/canvas/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: values.domain, token: values.token }),
+      })
+      const body = await res.json() as { name?: string; email?: string; error?: string }
+      if (!res.ok) {
+        setVerifyError(body.error ?? 'Verification failed.')
+      } else {
+        setVerifiedUser({ name: body.name ?? '', email: body.email ?? '' })
+      }
+    } catch {
+      setVerifyError('Network error. Please try again.')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  async function handleSaveCanvas(): Promise<void> {
+    if (!verifiedUser) return
+    const { domain, token } = canvasForm.getValues()
+    setSaving(true)
+    try {
+      const res = await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canvasDomain: domain, canvasToken: token }),
+      })
+      if (res.ok) {
+        setCanvasDomain(domain)
+        canvasRef.current?.close()
+      } else {
+        const body = await res.json() as { error?: string }
+        setVerifyError(body.error ?? 'Failed to save.')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDisconnectCanvas(): Promise<void> {
+    await fetch('/api/users/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canvasDomain: '', canvasToken: 'DISCONNECT' }),
+    })
+    setCanvasDomain(null)
+    canvasRef.current?.close()
   }
 
   async function submitEditProfile(values: EditProfileValues): Promise<void> {
-    setStatusMessage(null)
-    const response = await fetch('/api/users/me', {
+    setProfileMsg(null)
+    const res = await fetch('/api/users/me', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values),
     })
-
-    const responseBody = await response.json() as { error?: string }
-    if (!response.ok) {
-      setStatusMessage(responseBody.error ?? 'Failed to update profile')
-      return
+    const body = await res.json() as { error?: string }
+    if (!res.ok) {
+      setProfileMsg({ text: body.error ?? 'Failed to update profile', ok: false })
+    } else {
+      setProfileMsg({ text: 'Profile updated.', ok: true })
+      editRef.current?.close()
     }
-
-    setStatusMessage('Profile updated successfully')
-    editDialogRef.current?.close()
   }
 
   async function submitPasswordChange(values: ChangePasswordValues): Promise<void> {
-    setStatusMessage(null)
-    const response = await fetch('/api/users/me', {
+    setPasswordMsg(null)
+    const res = await fetch('/api/users/me', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values),
     })
-
-    const responseBody = await response.json() as { error?: string }
-    if (!response.ok) {
-      setStatusMessage(responseBody.error ?? 'Failed to change password')
-      return
+    const body = await res.json() as { error?: string }
+    if (!res.ok) {
+      setPasswordMsg({ text: body.error ?? 'Failed to change password', ok: false })
+    } else {
+      setPasswordMsg({ text: 'Password updated.', ok: true })
+      passwordRef.current?.close()
+      passwordForm.reset()
     }
-
-    setStatusMessage('Password updated successfully')
-    passwordDialogRef.current?.close()
-    passwordForm.reset()
   }
 
   return (
     <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Profile settings</h2>
-          <p className="mt-1 text-sm text-black/70 dark:text-white/70">Update your school info, username, Canvas token, and password.</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={openEditDialog} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>
-            Edit profile
-          </button>
-          <button type="button" onClick={openPasswordDialog} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>
-            Change password
-          </button>
-        </div>
+      <h2 className="text-2xl font-semibold">Profile settings</h2>
+      <p className="mt-1 text-sm text-black/60 dark:text-white/50">Manage your account, Canvas connection, and password.</p>
+
+      {profileMsg && (
+        <p className={`mt-3 text-sm ${profileMsg.ok ? 'text-green-500' : 'text-red-500'}`}>{profileMsg.text}</p>
+      )}
+
+      {/* Action buttons */}
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <button type="button" onClick={() => { setProfileMsg(null); editRef.current?.showModal() }} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ borderColor: `${ACCENT_COLOR}66` }}>
+          Edit profile
+          <ChevronRight className="h-4 w-4 opacity-40" />
+        </button>
+        <button type="button" onClick={openCanvas} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ borderColor: `${ACCENT_COLOR}66` }}>
+          <span className="flex items-center gap-2">
+            {canvasDomain
+              ? <><CheckCircle className="h-4 w-4 text-green-500" /> Canvas connected</>
+              : 'Connect Canvas'}
+          </span>
+          <ChevronRight className="h-4 w-4 opacity-40" />
+        </button>
+        <button type="button" onClick={() => { setPasswordMsg(null); passwordRef.current?.showModal() }} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ borderColor: `${ACCENT_COLOR}66` }}>
+          Change password
+          <ChevronRight className="h-4 w-4 opacity-40" />
+        </button>
       </div>
 
-      {statusMessage && <p className="mt-4 text-sm text-black/70 dark:text-white/70">{statusMessage}</p>}
+      {canvasDomain && (
+        <p className="mt-3 text-xs text-black/50 dark:text-white/40">
+          Connected to <span className="font-medium">{canvasDomain}</span>
+        </p>
+      )}
 
-      <dialog ref={editDialogRef} className="w-full max-w-2xl rounded-3xl border bg-white p-0 text-black backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }}>
-        <form onSubmit={editForm.handleSubmit(submitEditProfile)} className="space-y-6 p-6">
+      {/* ── Edit profile dialog ── */}
+      <dialog ref={editRef} className="fixed inset-0 m-auto h-fit w-full max-w-lg rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={() => editRef.current?.close()}>
+        <form onSubmit={editForm.handleSubmit(submitEditProfile)} className="space-y-5 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-xl font-semibold">Edit profile</h3>
-              <p className="mt-1 text-sm text-black/70 dark:text-white/70">Your Canvas token is encrypted before being saved.</p>
+              <p className="mt-1 text-sm text-black/60 dark:text-white/50">Update your name, username, and school.</p>
             </div>
-            <button type="button" aria-label="Close edit profile dialog" onClick={() => editDialogRef.current?.close()} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
-              <X className="h-4 w-4" aria-hidden="true" />
+            <button type="button" onClick={() => editRef.current?.close()} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
+              <X className="h-4 w-4" />
             </button>
           </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="space-y-1.5">
               <span className="text-sm font-medium">Full name</span>
-              <input {...editForm.register('fullName')} aria-label="Full name" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {editForm.formState.errors.fullName && <p role="alert" className="text-sm text-red-500">{editForm.formState.errors.fullName.message}</p>}
+              <input {...editForm.register('fullName')} className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none" style={{ borderColor: ACCENT_COLOR }} />
+              {editForm.formState.errors.fullName && <p className="text-xs text-red-500">{editForm.formState.errors.fullName.message}</p>}
             </label>
-            <label className="space-y-2">
+            <label className="space-y-1.5">
               <span className="text-sm font-medium">Username</span>
-              <input {...editForm.register('username')} aria-label="Username" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {editForm.formState.errors.username && <p role="alert" className="text-sm text-red-500">{editForm.formState.errors.username.message}</p>}
+              <input {...editForm.register('username')} className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none" style={{ borderColor: ACCENT_COLOR }} />
+              {editForm.formState.errors.username && <p className="text-xs text-red-500">{editForm.formState.errors.username.message}</p>}
             </label>
-            <label className="space-y-2">
+            <label className="space-y-1.5 sm:col-span-2">
               <span className="text-sm font-medium">School</span>
-              <input {...editForm.register('school')} aria-label="School" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium">Canvas domain</span>
-              <input {...editForm.register('canvasDomain')} aria-label="Canvas domain" placeholder="school.instructure.com" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            </label>
-            <label className="space-y-2 md:col-span-2">
-              <span className="text-sm font-medium">Canvas token</span>
-              <input {...editForm.register('canvasToken')} aria-label="Canvas token" type="password" placeholder="Paste a personal access token" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
+              <input {...editForm.register('school')} className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none" style={{ borderColor: ACCENT_COLOR }} />
             </label>
           </div>
-
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => editDialogRef.current?.close()} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>
-              Cancel
-            </button>
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={() => editRef.current?.close()} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>Cancel</button>
             <button type="submit" disabled={editForm.formState.isSubmitting} className="rounded-full px-4 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
-              Save changes
+              {editForm.formState.isSubmitting ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </form>
       </dialog>
 
-      <dialog ref={passwordDialogRef} className="w-full max-w-xl rounded-3xl border bg-white p-0 text-black backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }}>
-        <form onSubmit={passwordForm.handleSubmit(submitPasswordChange)} className="space-y-6 p-6">
+      {/* ── Canvas connection dialog ── */}
+      <dialog ref={canvasRef} className="fixed inset-0 m-auto h-fit w-full max-w-xl rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={() => canvasRef.current?.close()}>
+        <div className="space-y-5 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-xl font-semibold">Change password</h3>
-              <p className="mt-1 text-sm text-black/70 dark:text-white/70">Confirm your current password before setting a new one.</p>
+              <h3 className="text-xl font-semibold">Connect Canvas</h3>
+              <p className="mt-1 text-sm text-black/60 dark:text-white/50">Use a personal access token to link your Canvas account.</p>
             </div>
-            <button type="button" aria-label="Close password dialog" onClick={() => passwordDialogRef.current?.close()} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
-              <X className="h-4 w-4" aria-hidden="true" />
+            <button type="button" onClick={() => canvasRef.current?.close()} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium">Current password</span>
-            <input {...passwordForm.register('oldPassword')} type="password" aria-label="Current password" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            {passwordForm.formState.errors.oldPassword && <p role="alert" className="text-sm text-red-500">{passwordForm.formState.errors.oldPassword.message}</p>}
-          </label>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium">New password</span>
-            <input {...passwordForm.register('newPassword')} type="password" aria-label="New password" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            {passwordForm.formState.errors.newPassword && <p role="alert" className="text-sm text-red-500">{passwordForm.formState.errors.newPassword.message}</p>}
-          </label>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium">Confirm new password</span>
-            <input {...passwordForm.register('confirmPassword')} type="password" aria-label="Confirm new password" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            {passwordForm.formState.errors.confirmPassword && <p role="alert" className="text-sm text-red-500">{passwordForm.formState.errors.confirmPassword.message}</p>}
-          </label>
+          {/* Step-by-step guide */}
+          <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: `${ACCENT_COLOR}44` }}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/40">How to get your token</p>
+            {CANVAS_STEPS.map(({ step, label, detail }) => (
+              <div key={step} className="flex gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: ACCENT_COLOR }}>{step}</span>
+                <div>
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-black/55 dark:text-white/45">{detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
 
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => passwordDialogRef.current?.close()} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>
-              Cancel
+          {/* Fields */}
+          <form onSubmit={(e) => { e.preventDefault(); void handleVerify() }} className="space-y-3">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium">Canvas domain</span>
+              <input
+                {...canvasForm.register('domain')}
+                placeholder="myschool.instructure.com"
+                className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none"
+                style={{ borderColor: ACCENT_COLOR }}
+              />
+              {canvasForm.formState.errors.domain && <p className="text-xs text-red-500">{canvasForm.formState.errors.domain.message}</p>}
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium">Personal access token</span>
+              <input
+                {...canvasForm.register('token')}
+                type="password"
+                placeholder="Paste token here"
+                className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none"
+                style={{ borderColor: ACCENT_COLOR }}
+              />
+              {canvasForm.formState.errors.token && <p className="text-xs text-red-500">{canvasForm.formState.errors.token.message}</p>}
+            </label>
+
+            {verifyError && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">{verifyError}</p>}
+
+            {verifiedUser && (
+              <div className="flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm" style={{ borderColor: `${ACCENT_COLOR}55`, backgroundColor: `${ACCENT_COLOR}10` }}>
+                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                <span>Verified as <strong>{verifiedUser.name}</strong></span>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              {canvasDomain && (
+                <button type="button" onClick={() => void handleDisconnectCanvas()} className="text-sm text-red-500 hover:underline">
+                  Disconnect Canvas
+                </button>
+              )}
+              <div className="ml-auto flex gap-3">
+                {!verifiedUser ? (
+                  <button type="submit" disabled={verifying} className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
+                    {verifying && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {verifying ? 'Verifying…' : 'Verify token'}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => void handleSaveCanvas()} disabled={saving} className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
+                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {saving ? 'Saving…' : 'Save & connect'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      {/* ── Change password dialog ── */}
+      <dialog ref={passwordRef} className="fixed inset-0 m-auto h-fit w-full max-w-lg rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={() => passwordRef.current?.close()}>
+        <form onSubmit={passwordForm.handleSubmit(submitPasswordChange)} className="space-y-4 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-semibold">Change password</h3>
+              <p className="mt-1 text-sm text-black/60 dark:text-white/50">Confirm your current password before setting a new one.</p>
+            </div>
+            <button type="button" onClick={() => passwordRef.current?.close()} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
+              <X className="h-4 w-4" />
             </button>
+          </div>
+          {passwordMsg && <p className={`text-sm ${passwordMsg.ok ? 'text-green-500' : 'text-red-500'}`}>{passwordMsg.text}</p>}
+          {(['oldPassword', 'newPassword', 'confirmPassword'] as const).map((field) => (
+            <label key={field} className="block space-y-1.5">
+              <span className="text-sm font-medium capitalize">{field === 'oldPassword' ? 'Current password' : field === 'newPassword' ? 'New password' : 'Confirm new password'}</span>
+              <input {...passwordForm.register(field)} type="password" className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none" style={{ borderColor: ACCENT_COLOR }} />
+              {passwordForm.formState.errors[field] && <p className="text-xs text-red-500">{passwordForm.formState.errors[field]?.message}</p>}
+            </label>
+          ))}
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={() => passwordRef.current?.close()} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>Cancel</button>
             <button type="submit" disabled={passwordForm.formState.isSubmitting} className="rounded-full px-4 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
-              Update password
+              {passwordForm.formState.isSubmitting ? 'Updating…' : 'Update password'}
             </button>
           </div>
         </form>

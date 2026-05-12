@@ -1,8 +1,17 @@
 import 'server-only'
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
 
 const ALGORITHM = 'aes-256-gcm'
-const SECRET_KEY = Buffer.from(process.env.CANVAS_TOKEN_SECRET!, 'hex') // 32 bytes = 64 hex chars
+
+// Derive a consistent 32-byte key from any secret string via SHA-256.
+// This means CANVAS_TOKEN_SECRET can be any value — no strict hex format required.
+function deriveKey(): Buffer {
+  const secret = process.env.CANVAS_TOKEN_SECRET
+  if (!secret) throw new Error('CANVAS_TOKEN_SECRET env var is not set')
+  return createHash('sha256').update(secret).digest()
+}
+
+const SECRET_KEY = deriveKey()
 
 export function encryptToken(plaintext: string): string {
   const iv = randomBytes(12)

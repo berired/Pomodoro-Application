@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { CalendarDays, CheckSquare, Flame, Music4, School, TimerReset, UserCircle } from 'lucide-react'
-import { auth } from '@/lib/auth'
+import { CalendarDays, CheckSquare, Flame, Music4, School, TimerReset } from 'lucide-react'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { ACCENT_COLOR } from '@/lib/constants'
 import NavBar from '@/components/NavBar'
 import PomodoroTimer from '@/components/PomodoroTimer'
@@ -67,60 +67,37 @@ function LandingPage(): React.JSX.Element {
   )
 }
 
-function DashboardPage({ username }: { username: string }): React.JSX.Element {
+function DashboardPage(): React.JSX.Element {
   return (
     <main className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-10">
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-semibold">Welcome back, {username}</h1>
-              <p className="mt-2 text-sm text-black/70 dark:text-white/70">Your home dashboard will host Pomodoro, Spotify, and progress tracking.</p>
-            </div>
-            <UserCircle className="h-10 w-10" aria-hidden="true" />
-          </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {features.map((feature) => {
-              const Icon = feature.icon
-              return (
-                <div key={feature.title} className="rounded-2xl border p-4" style={{ borderColor: `${ACCENT_COLOR}33` }}>
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                  <h2 className="mt-3 text-sm font-semibold">{feature.title}</h2>
-                  <p className="mt-1 text-sm text-black/70 dark:text-white/70">{feature.description}</p>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-        <aside className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Left: Pomodoro */}
+        <PomodoroTimer />
+
+        {/* Right: Spotify on top, Heatmap below */}
+        <div className="flex flex-col gap-4">
           <SpotifyPlayer />
-          <PomodoroTimer />
           <Heatmap />
-          <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
-            <h2 className="text-xl font-semibold">Quick actions</h2>
-            <div className="mt-4 flex flex-col gap-3">
-              <Link href="/academics" className="rounded-2xl border px-4 py-3" style={{ borderColor: ACCENT_COLOR }}>Open Academics</Link>
-              <Link href="/calendar" className="rounded-2xl border px-4 py-3" style={{ borderColor: ACCENT_COLOR }}>Open Calendar</Link>
-              <Link href="/profile" className="rounded-2xl border px-4 py-3" style={{ borderColor: ACCENT_COLOR }}>Open Profile</Link>
-            </div>
-          </section>
-        </aside>
+        </div>
       </div>
     </main>
   )
 }
 
 export default async function Home(): Promise<React.JSX.Element> {
-  const authSession = await auth()
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!authSession?.user?.id) {
+  if (!user) {
     return <LandingPage />
   }
 
+  const username = (user.user_metadata?.username as string | undefined) ?? 'Student'
+
   return (
     <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
-      <NavBar username={authSession.user.username} />
-      <DashboardPage username={authSession.user.username} />
+      <NavBar username={username} />
+      <DashboardPage />
     </div>
   )
 }

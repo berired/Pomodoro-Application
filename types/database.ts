@@ -10,18 +10,16 @@ export type Database = {
           name: string
           email: string
           username: string
-          password: string
           school: string | null
           canvas_token: string | null
           canvas_domain: string | null
           created_at: string
         }
         Insert: {
-          id?: string
+          id: string
           name: string
           email: string
           username: string
-          password: string
           school?: string | null
           canvas_token?: string | null
           canvas_domain?: string | null
@@ -32,7 +30,6 @@ export type Database = {
           name?: string
           email?: string
           username?: string
-          password?: string
           school?: string | null
           canvas_token?: string | null
           canvas_domain?: string | null

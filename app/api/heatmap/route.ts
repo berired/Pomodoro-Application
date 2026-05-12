@@ -1,14 +1,15 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { HeatmapEntry } from '@/types'
 
 export async function GET(_req: NextRequest): Promise<NextResponse> {
   try {
     void _req
-    const authSession = await auth()
-    if (!authSession?.user?.id) {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -18,7 +19,7 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
     const { data: activityRows, error } = await supabaseAdmin
       .from('login_activity')
       .select('login_at')
-      .eq('user_id', authSession.user.id)
+      .eq('user_id', user.id)
       .gte('login_at', cutoffDate.toISOString())
 
     if (error) {

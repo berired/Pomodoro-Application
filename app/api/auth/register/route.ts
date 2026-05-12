@@ -1,6 +1,5 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase'
 import { PASSWORD_REGEX } from '@/lib/constants'
@@ -23,21 +22,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const { fullName, school, email, username, password } = parsed.data
-    const hashedPassword = await bcrypt.hash(password, 12)
 
-    const { error } = await supabaseAdmin.from('users').insert({
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { username, full_name: fullName },
+    })
+
+    if (authError) {
+      if (authError.status === 422 || authError.message.toLowerCase().includes('already')) {
+        return NextResponse.json({ error: 'Email already exists' }, { status: 409 })
+      }
+      return NextResponse.json({ error: authError.message }, { status: 400 })
+    }
+
+    const { error: profileError } = await supabaseAdmin.from('users').insert({
+      id: authData.user.id,
       name: fullName,
       school,
       email,
       username,
-      password: hashedPassword,
     })
 
-    if (error) {
-      if (error.message.includes('duplicate')) {
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      if (profileError.message.includes('duplicate')) {
         return NextResponse.json({ error: 'Email or username already exists' }, { status: 409 })
       }
-      return NextResponse.json({ error: error.message }, { status: 409 })
+      return NextResponse.json({ error: profileError.message }, { status: 409 })
     }
 
     return NextResponse.json({ success: true }, { status: 201 })

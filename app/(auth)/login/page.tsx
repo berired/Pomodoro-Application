@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import { ACCENT_COLOR } from '@/lib/constants'
 
 const loginSchema = z.object({
@@ -24,19 +24,32 @@ export default function LoginPage(): React.JSX.Element {
 
   async function onSubmit(values: LoginValues): Promise<void> {
     setServerError(null)
-    const result = await signIn('credentials', {
-      redirect: false,
-      identifier: values.identifier,
+    const supabase = createSupabaseBrowserClient()
+
+    let email = values.identifier
+    if (!email.includes('@')) {
+      const res = await fetch(`/api/auth/lookup-email?username=${encodeURIComponent(values.identifier)}`)
+      const data = await res.json() as { email: string | null }
+      if (!data.email) {
+        setServerError('Invalid credentials')
+        return
+      }
+      email = data.email
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
       password: values.password,
-      callbackUrl: '/',
     })
 
-    if (result?.error) {
+    if (error) {
       setServerError('Invalid credentials')
       return
     }
 
+    void fetch('/api/auth/record-login', { method: 'POST' })
     router.push('/')
+    router.refresh()
   }
 
   return (

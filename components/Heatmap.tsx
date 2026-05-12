@@ -4,6 +4,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { ACCENT_COLOR } from '@/lib/constants'
 import type { HeatmapEntry } from '@/types'
 
+const WEEKS = 52
+const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', '']
+
+function getColor(count: number): string {
+  if (count === 0) return 'rgb(55 65 81)'
+  if (count === 1) return `${ACCENT_COLOR}66`
+  if (count === 2) return `${ACCENT_COLOR}99`
+  return ACCENT_COLOR
+}
+
 export default function Heatmap(): React.JSX.Element {
   const [entries, setEntries] = useState<HeatmapEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -26,53 +36,76 @@ export default function Heatmap(): React.JSX.Element {
     void loadHeatmap()
   }, [])
 
-  const entryMap = useMemo(() => new Map(entries.map((entry) => [entry.date, entry.count])), [entries])
+  const entryMap = useMemo(() => new Map(entries.map((e) => [e.date, e.count])), [entries])
 
-  const today = new Date()
-  const startDate = new Date(today)
-  startDate.setDate(today.getDate() - 364)
+  const weeks = useMemo(() => {
+    const today = new Date()
+    const start = new Date(today)
+    start.setDate(today.getDate() - WEEKS * 7)
+    start.setDate(start.getDate() - start.getDay()) // align to Sunday
 
-  const squares = Array.from({ length: 365 }, (_, index) => {
-    const currentDate = new Date(startDate)
-    currentDate.setDate(startDate.getDate() + index)
-    const dateKey = currentDate.toISOString().slice(0, 10)
-    const count = entryMap.get(dateKey) ?? 0
-
-    return (
-      <div
-        key={dateKey}
-        title={`${dateKey}: ${count} logins`}
-        className="h-3.5 w-3.5 rounded-sm"
-        style={{
-          backgroundColor:
-            count === 0
-              ? 'rgb(229 231 235)'
-              : count === 1
-                ? `${ACCENT_COLOR}66`
-                : count === 2
-                  ? `${ACCENT_COLOR}99`
-                  : ACCENT_COLOR,
-        }}
-      />
+    return Array.from({ length: WEEKS }, (_, w) =>
+      Array.from({ length: 7 }, (_, d) => {
+        const date = new Date(start)
+        date.setDate(start.getDate() + w * 7 + d)
+        const dateKey = date.toISOString().slice(0, 10)
+        return { dateKey, count: entryMap.get(dateKey) ?? 0, month: date.getMonth() }
+      })
     )
-  })
+  }, [entryMap])
 
   return (
-    <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
-      <div className="flex items-center justify-between gap-4">
+    <section className="rounded-3xl border px-5 py-4" style={{ borderColor: ACCENT_COLOR }}>
+      <div className="mb-3 flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Activity</p>
-          <h2 className="mt-2 text-2xl font-semibold">Login heatmap</h2>
+          <p className="text-xs uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Activity</p>
+          <h2 className="mt-0.5 text-base font-semibold">Login heatmap</h2>
         </div>
-        <div className="text-sm text-black/60 dark:text-white/60">{isLoading ? 'Loading…' : `${entries.length} active days`}</div>
+        <div className="text-xs text-black/60 dark:text-white/60">
+          {isLoading ? 'Loading…' : `${entries.length} active days`}
+        </div>
       </div>
-      <div className="mt-6 grid grid-cols-[repeat(13,minmax(0,1fr))] gap-1 overflow-x-auto pb-1">{squares}</div>
-      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-black/60 dark:text-white/60">
+
+      <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex min-w-max gap-1">
+          {/* Day labels */}
+          <div className="mr-1 flex flex-col gap-0.5">
+            <div className="h-4" />
+            {DAY_LABELS.map((label, i) => (
+              <div key={i} className="flex h-2.5 w-6 items-center text-[10px] text-black/50 dark:text-white/40">
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* Week columns */}
+          {weeks.map((week, wi) => {
+            const showMonth = wi === 0 || week[0].month !== weeks[wi - 1][0].month
+            return (
+              <div key={wi} className="flex flex-col gap-0.5">
+                <div className="h-4 text-[10px] whitespace-nowrap text-black/50 dark:text-white/40">
+                  {showMonth ? new Date(week[0].dateKey).toLocaleString('default', { month: 'short' }) : ''}
+                </div>
+                {week.map(({ dateKey, count }) => (
+                  <div
+                    key={dateKey}
+                    title={`${dateKey}: ${count} login${count !== 1 ? 's' : ''}`}
+                    className="h-2.5 w-2.5 rounded-sm"
+                    style={{ backgroundColor: getColor(count) }}
+                  />
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mt-2 flex items-center gap-2 text-xs text-black/60 dark:text-white/60">
         <span>Less</span>
-        <span className="h-3 w-3 rounded-sm bg-gray-300" />
-        <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: `${ACCENT_COLOR}66` }} />
-        <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: `${ACCENT_COLOR}99` }} />
-        <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: ACCENT_COLOR }} />
+        <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: 'rgb(55 65 81)' }} />
+        <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: `${ACCENT_COLOR}66` }} />
+        <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: `${ACCENT_COLOR}99` }} />
+        <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: ACCENT_COLOR }} />
         <span>More</span>
       </div>
     </section>

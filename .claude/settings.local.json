@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx skills *)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(del \"app\\\\api\\\\auth\\\\[...nextauth]\\\\route.ts\")",
+      "Bash(del \"lib\\\\auth.ts\")",
+      "Bash(del \"types\\\\next-auth.d.ts\")",
+      "Bash(Test-Path *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\david\\\\OneDrive\\\\Documents\\\\codes\\\\pomodoro-app\\\\app\\\\api\\\\auth\\\\\" -Recurse -Force | ForEach-Object { $_.FullName })",
+      "Bash(mkdir -p \"c:\\\\Users\\\\david\\\\OneDrive\\\\Documents\\\\codes\\\\pomodoro-app\\\\app\\\\api\\\\spotify\\\\playlists\\\\[id]\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\david\\\\OneDrive\\\\Documents\\\\codes\\\\pomodoro-app\\\\app\\\\api\\\\spotify\\\\\" -Recurse | Select-Object FullName)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\david\\\\OneDrive\\\\Documents\\\\codes\\\\pomodoro-app\\\\app\\\\api\\\\spotify\\\\refresh\\\\route.ts\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\david\\\\OneDrive\\\\Documents\\\\codes\\\\pomodoro-app\\\\app\\\\api\\\\spotify\\\\current\\\\route.ts\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\david\\\\OneDrive\\\\Documents\\\\codes\\\\pomodoro-app\\\\app\\\\api\\\\spotify\\\\control\\\\route.ts\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\david\\\\OneDrive\\\\Documents\\\\codes\\\\pomodoro-app\\\\app\\\\api\\\\spotify\\\\volume\\\\route.ts\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\david\\\\OneDrive\\\\Documents\\\\codes\\\\pomodoro-app\\\\app\\\\api\\\\spotify\\\\debug\\\\route.ts\" -Force)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\david\\OneDrive\\Documents\\codes\\pomodoro-app\\app\\api\\spotify\\playlists"
+    ]
+  }
+}

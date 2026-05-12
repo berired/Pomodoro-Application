@@ -1,7 +1,7 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { ClassRow } from '@/types'
 
@@ -19,13 +19,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const authSession = await auth()
-    if (!authSession?.user?.id) {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
-
     const body = await req.json()
     const parsed = updateClassSchema.safeParse(body)
 
@@ -37,7 +37,7 @@ export async function PATCH(
       .from('classes')
       .update(parsed.data)
       .eq('id', id)
-      .eq('user_id', authSession.user.id)
+      .eq('user_id', user.id)
       .select()
       .single()
 
@@ -60,8 +60,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const authSession = await auth()
-    if (!authSession?.user?.id) {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -71,7 +72,7 @@ export async function DELETE(
       .from('classes')
       .delete()
       .eq('id', id)
-      .eq('user_id', authSession.user.id)
+      .eq('user_id', user.id)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })

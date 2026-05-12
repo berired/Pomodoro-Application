@@ -1,11 +1,10 @@
 create extension if not exists pgcrypto;
 
 create table public.users (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
   email text not null unique,
   username text not null unique,
-  password text not null,
   school text,
   canvas_token text,
   canvas_domain text,

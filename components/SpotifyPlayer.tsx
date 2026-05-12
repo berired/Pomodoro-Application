@@ -1,191 +1,567 @@
 'use client'
 
-import Script from 'next/script'
 import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
-import { Pause, Play, SkipBack, SkipForward, Volume2 } from 'lucide-react'
-import PlaylistPanel from '@/components/PlaylistPanel'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Music2, Pause, Play, SkipBack, SkipForward, Volume2 } from 'lucide-react'
 import { ACCENT_COLOR } from '@/lib/constants'
 import type { SpotifyPlaylist, SpotifyTrack } from '@/types'
 
-interface SpotifyPlaybackState {
-  is_playing?: boolean
-  item?: {
-    id: string
-    name: string
-    duration_ms: number
-    artists: Array<{ name: string }>
-    album: { images: Array<{ url: string }> }
-    uri: string
-  } | null
-  progress_ms?: number
-  device?: { volume_percent?: number }
+// ── Spotify Web Playback SDK minimal types ──────────────────────────────────
+interface SDKTrack {
+  id: string
+  name: string
+  duration_ms: number
+  artists: Array<{ name: string }>
+  album: { images: Array<{ url: string }> }
+}
+
+interface SDKState {
+  paused: boolean
+  position: number
+  duration: number
+  timestamp: number
+  track_window: { current_track: SDKTrack | null }
+}
+
+interface SDKPlayer {
+  connect(): Promise<boolean>
+  disconnect(): void
+  pause(): Promise<void>
+  resume(): Promise<void>
+  togglePlay(): Promise<void>
+  nextTrack(): Promise<void>
+  previousTrack(): Promise<void>
+  setVolume(v: number): Promise<void>
+  getVolume(): Promise<number>
+  getCurrentState(): Promise<SDKState | null>
+  addListener(event: string, cb: (data: unknown) => void): boolean
+  removeListener(event: string, cb?: (data: unknown) => void): boolean
+}
+
+declare global {
+  interface Window {
+    Spotify: { Player: new (opts: { name: string; getOAuthToken: (cb: (t: string) => void) => void; volume: number }) => SDKPlayer }
+    onSpotifyWebPlaybackSDKReady: () => void
+  }
+}
+// ───────────────────────────────────────────────────────────────────────────
+
+function fmtMs(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
 export default function SpotifyPlayer(): React.JSX.Element {
-  const [isConnected, setIsConnected] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [connected, setConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [playerReady, setPlayerReady] = useState(false)
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([])
-  const [currentPlayback, setCurrentPlayback] = useState<SpotifyPlaybackState | null>(null)
-  const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylist | null>(null)
+
+  // Playback state (driven by SDK events)
+  const [paused, setPaused] = useState(true)
+  const [currentTrack, setCurrentTrack] = useState<SDKTrack | null>(null)
+  const [duration, setDuration] = useState(0)
+  const [localProgress, setLocalProgress] = useState(0)
   const [volume, setVolume] = useState(50)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const currentTrack = useMemo<SpotifyTrack | null>(() => {
-    const playbackItem = currentPlayback?.item
-    if (!playbackItem) return null
+  const [controlError, setControlError] = useState<string | null>(null)
+  const [needsReconnect, setNeedsReconnect] = useState(false)
 
-    return {
-      id: playbackItem.id,
-      trackName: playbackItem.name,
-      artistName: playbackItem.artists.map((artist) => artist.name).join(', '),
-      albumArt: playbackItem.album.images[0]?.url ?? '',
-      durationMs: playbackItem.duration_ms,
+  // Playlist / tracks view
+  const [openPlaylist, setOpenPlaylist] = useState<SpotifyPlaylist | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [tracks, setTracks] = useState<SpotifyTrack[]>([])
+  const [tracksLoading, setTracksLoading] = useState(false)
+  const [tracksReason, setTracksReason] = useState<string | null>(null)
+
+  const playerRef = useRef<SDKPlayer | null>(null)
+  const deviceIdRef = useRef<string | null>(null)
+  const tokenRef = useRef<string | null>(null)
+  // Track position interpolation
+  const stateSnapshotRef = useRef<{ position: number; timestamp: number; paused: boolean } | null>(null)
+
+  // ── Token helper ────────────────────────────────────────────────────────
+  const fetchToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const res = await fetch('/api/spotify/token')
+      const data = (await res.json()) as { connected: boolean; accessToken?: string }
+      if (!data.connected || !data.accessToken) return null
+      tokenRef.current = data.accessToken
+      return data.accessToken
+    } catch {
+      return null
     }
-  }, [currentPlayback])
-
-  useEffect(() => {
-    async function loadSpotifyData(): Promise<void> {
-      try {
-        const tokenResponse = await fetch('/api/spotify/token')
-        if (!tokenResponse.ok) {
-          setIsConnected(false)
-          setIsLoading(false)
-          return
-        }
-
-        setIsConnected(true)
-        const [playlistResponse, currentResponse] = await Promise.all([
-          fetch('/api/spotify/playlists'),
-          fetch('/api/spotify/current'),
-        ])
-
-        if (playlistResponse.ok) {
-          const playlistData = (await playlistResponse.json()) as SpotifyPlaylist[]
-          setPlaylists(playlistData)
-        }
-
-        if (currentResponse.ok) {
-          const currentData = (await currentResponse.json()) as SpotifyPlaybackState
-          setCurrentPlayback(currentData)
-          setVolume(currentData.device?.volume_percent ?? 50)
-        }
-      } catch {
-        setErrorMessage('Unable to load Spotify data.')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    void loadSpotifyData()
   }, [])
 
-  async function connectSpotify(): Promise<void> {
-    window.location.href = '/api/spotify/auth'
-  }
+  // ── SDK state handler ───────────────────────────────────────────────────
+  const handleSDKState = useCallback((state: SDKState | null) => {
+    if (!state) return
+    const track = state.track_window.current_track
+    setPaused(state.paused)
+    setLocalProgress(state.position)
+    stateSnapshotRef.current = { position: state.position, timestamp: state.timestamp, paused: state.paused }
+    if (track) {
+      setCurrentTrack(track)
+      setDuration(track.duration_ms || state.duration)
+    }
+  }, [])
 
-  async function sendPlaybackAction(action: 'play' | 'pause' | 'next' | 'previous'): Promise<void> {
-    setErrorMessage(null)
-    const response = await fetch('/api/spotify/control', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action,
-        contextUri: selectedPlaylist ? `spotify:playlist:${selectedPlaylist.id}` : undefined,
-      }),
-    })
+  // ── SDK initialisation ──────────────────────────────────────────────────
+  const initSDK = useCallback(() => {
+    const createPlayer = () => {
+      if (!window.Spotify) return
+      const player = new window.Spotify.Player({
+        name: 'Pomodoro Web Player',
+        getOAuthToken: (cb) => {
+          void fetchToken().then((t) => { if (t) cb(t) })
+        },
+        volume: 0.5,
+      })
 
-    if (!response.ok) {
-      setErrorMessage('Spotify playback request failed.')
-      return
+      player.addListener('ready', ((({ device_id }: { device_id: string }) => {
+        deviceIdRef.current = device_id
+        setPlayerReady(true)
+        void player.getVolume().then((v) => setVolume(Math.round(v * 100)))
+      }) as (d: unknown) => void))
+
+      player.addListener('not_ready', (() => {
+        setPlayerReady(false)
+      }) as (d: unknown) => void)
+
+      player.addListener('player_state_changed', ((state: SDKState | null) => {
+        handleSDKState(state)
+      }) as (d: unknown) => void)
+
+      player.addListener('authentication_error', (() => {
+        setNeedsReconnect(true)
+      }) as (d: unknown) => void)
+
+      void player.connect()
+      playerRef.current = player
     }
 
-    if (action === 'play') {
-      const currentResponse = await fetch('/api/spotify/current')
-      if (currentResponse.ok) {
-        setCurrentPlayback((await currentResponse.json()) as SpotifyPlaybackState)
+    if (typeof window !== 'undefined' && window.Spotify) {
+      createPlayer()
+    } else {
+      window.onSpotifyWebPlaybackSDKReady = createPlayer
+      if (!document.querySelector('script[src*="spotify-player"]')) {
+        const s = document.createElement('script')
+        s.src = 'https://sdk.scdn.co/spotify-player.js'
+        s.async = true
+        document.head.appendChild(s)
       }
     }
-  }
+  }, [fetchToken, handleSDKState])
 
-  async function updateVolume(nextVolume: number): Promise<void> {
-    setVolume(nextVolume)
-    await fetch('/api/spotify/volume', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ volumePercent: nextVolume }),
+  // ── Mount: check connection, load playlists, init SDK ──────────────────
+  useEffect(() => {
+    let cancelled = false
+    async function init() {
+      try {
+        const token = await fetchToken()
+        if (cancelled || !token) return
+        setConnected(true)
+        const plRes = await fetch('/api/spotify/playlists')
+        if (!cancelled && plRes.ok) setPlaylists((await plRes.json()) as SpotifyPlaylist[])
+        initSDK()
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void init()
+    return () => {
+      cancelled = true
+      playerRef.current?.disconnect()
+      playerRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Local progress interpolation ────────────────────────────────────────
+  useEffect(() => {
+    if (paused) return
+    const id = setInterval(() => {
+      const snap = stateSnapshotRef.current
+      if (!snap || snap.paused) return
+      const elapsed = Date.now() - snap.timestamp
+      setLocalProgress(Math.min(snap.position + elapsed, duration || Infinity))
+    }, 500)
+    return () => clearInterval(id)
+  }, [paused, duration])
+
+  // ── Spotify Web API direct call (needed to start a context / playlist) ──
+  async function callSpotify(endpoint: string, method: string, body?: object): Promise<Response | null> {
+    const token = await fetchToken()
+    if (!token) { setNeedsReconnect(true); return null }
+    const deviceId = deviceIdRef.current
+    const url = deviceId && endpoint.includes('/play')
+      ? `${endpoint}?device_id=${deviceId}`
+      : endpoint
+    return fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
     })
   }
 
+  async function playContext(contextUri: string, offsetUri?: string): Promise<void> {
+    setControlError(null)
+    if (!playerReady) { setControlError('no_device'); return }
+    const body: Record<string, unknown> = { context_uri: contextUri }
+    if (offsetUri) body.offset = { uri: offsetUri }
+    const res = await callSpotify('https://api.spotify.com/v1/me/player/play', 'PUT', body)
+    if (!res) return
+    if (res.status === 403) setControlError('premium_required')
+    else if (!res.ok && res.status !== 204) setControlError('failed')
+  }
+
+  async function togglePlay(): Promise<void> {
+    setControlError(null)
+    if (!playerRef.current) { setControlError('no_device'); return }
+    await playerRef.current.togglePlay()
+  }
+
+  async function skipNext(): Promise<void> {
+    setControlError(null)
+    if (!playerRef.current) return
+    await playerRef.current.nextTrack()
+  }
+
+  async function skipPrevious(): Promise<void> {
+    setControlError(null)
+    if (!playerRef.current) return
+    await playerRef.current.previousTrack()
+  }
+
+  const volumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function handleVolume(v: number): void {
+    setVolume(v)
+    if (volumeTimer.current) clearTimeout(volumeTimer.current)
+    volumeTimer.current = setTimeout(() => {
+      void playerRef.current?.setVolume(v / 100)
+    }, 150)
+  }
+
+  // ── Playlist tracks ─────────────────────────────────────────────────────
+  async function openPlaylistTracks(pl: SpotifyPlaylist): Promise<void> {
+    setOpenPlaylist(pl)
+    setSelectedId(pl.id)
+    setTracks([])
+    setTracksReason(null)
+    setTracksLoading(true)
+    try {
+      const res = await fetch(`/api/spotify/playlists/${pl.id}`)
+      const data = (await res.json()) as { tracks: SpotifyTrack[]; reason?: string }
+      setTracks(data.tracks ?? [])
+      if (data.reason) setTracksReason(data.reason)
+    } catch {
+      setTracksReason('failed')
+    } finally {
+      setTracksLoading(false)
+    }
+  }
+
+  // ── Disconnect ──────────────────────────────────────────────────────────
+  function disconnect(): void {
+    void fetch('/api/spotify/disconnect', { method: 'POST' })
+    playerRef.current?.disconnect()
+    playerRef.current = null
+    deviceIdRef.current = null
+    tokenRef.current = null
+    stateSnapshotRef.current = null
+    setConnected(false)
+    setPlayerReady(false)
+    setPaused(true)
+    setCurrentTrack(null)
+    setDuration(0)
+    setLocalProgress(0)
+    setVolume(50)
+    setPlaylists([])
+    setOpenPlaylist(null)
+    setSelectedId(null)
+    setTracks([])
+    setTracksReason(null)
+    setControlError(null)
+    setNeedsReconnect(false)
+  }
+
+  // ── Derived ─────────────────────────────────────────────────────────────
+  const progress = duration > 0 ? (localProgress / duration) * 100 : 0
+  const sortedPlaylists = [...playlists].sort((a, b) => Number(b.isOwned) - Number(a.isOwned))
+
+  const controlErrorLabel =
+    controlError === 'no_device' ? 'Player is connecting — try again in a moment.' :
+    controlError === 'premium_required' ? 'Spotify Premium is required for playback control.' :
+    controlError === 'failed' ? 'Playback request failed.' : null
+
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
-    <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
-      <Script src="https://sdk.scdn.co/spotify-player.js" strategy="afterInteractive" />
+    <section className="flex flex-col rounded-3xl border p-5" style={{ borderColor: ACCENT_COLOR }}>
+      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Spotify</p>
-          <h2 className="mt-2 text-2xl font-semibold">Web player</h2>
+          <p className="text-xs uppercase tracking-[0.2em] text-black/50 dark:text-white/40">Spotify</p>
+          <h2 className="mt-0.5 text-xl font-semibold">Web Player</h2>
         </div>
-        {!isConnected ? (
-          <button type="button" onClick={connectSpotify} className="rounded-full px-4 py-2 text-sm text-white" style={{ backgroundColor: ACCENT_COLOR }}>
+        {!connected ? (
+          <button
+            type="button"
+            onClick={() => { window.location.href = '/api/spotify/auth' }}
+            className="rounded-full px-4 py-2 text-xs font-medium text-white"
+            style={{ backgroundColor: ACCENT_COLOR }}
+          >
             Connect Spotify
           </button>
         ) : (
-          <span className="text-sm text-black/60 dark:text-white/60">Connected</span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-xs text-green-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+              {playerReady ? 'Connected' : 'Connecting…'}
+            </span>
+            <button
+              type="button"
+              onClick={disconnect}
+              className="rounded-full border px-2.5 py-1 text-[10px] font-medium text-black/50 transition-colors hover:border-red-400 hover:text-red-500 dark:text-white/40"
+              style={{ borderColor: `${ACCENT_COLOR}44` }}
+            >
+              Disconnect
+            </button>
+          </div>
         )}
       </div>
 
-      {isLoading ? <p className="mt-6 text-sm text-black/70 dark:text-white/70">Loading Spotify data…</p> : null}
-      {errorMessage ? <p className="mt-4 rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: `${ACCENT_COLOR}33` }}>{errorMessage}</p> : null}
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="mt-5 space-y-3">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-12 animate-pulse rounded-2xl" style={{ backgroundColor: `${ACCENT_COLOR}18` }} />
+          ))}
+        </div>
+      )}
 
-      {isConnected ? (
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border p-5" style={{ borderColor: `${ACCENT_COLOR}33` }}>
-            {currentTrack ? (
-              <>
-                <div className="flex gap-4">
-                  <div className="relative h-28 w-28 overflow-hidden rounded-2xl bg-black/5 dark:bg-white/5">
-                    {currentTrack.albumArt ? <Image src={currentTrack.albumArt} alt={currentTrack.trackName} fill className="object-cover" sizes="112px" /> : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Now playing</p>
-                    <h3 className="mt-2 truncate text-2xl font-semibold">{currentTrack.trackName}</h3>
-                    <p className="mt-1 text-sm text-black/70 dark:text-white/70">{currentTrack.artistName}</p>
-                    <div className="mt-5 h-2 rounded-full bg-black/10 dark:bg-white/10">
-                      <div className="h-2 rounded-full" style={{ width: `${currentPlayback?.progress_ms && currentTrack.durationMs ? (currentPlayback.progress_ms / currentTrack.durationMs) * 100 : 0}%`, backgroundColor: ACCENT_COLOR }} />
-                    </div>
-                    <p className="mt-2 text-xs text-black/60 dark:text-white/60">{currentPlayback?.progress_ms ? `${Math.round((currentPlayback.progress_ms / 1000) / 60)} min elapsed` : 'No current track data'}</p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-black/70 dark:text-white/70" style={{ borderColor: `${ACCENT_COLOR}33` }}>
-                Play something on Spotify to see the current track here.
-              </div>
-            )}
+      {/* Not connected */}
+      {!loading && !connected && (
+        <div className="mt-5 rounded-2xl border border-dashed p-6 text-center text-sm text-black/60 dark:text-white/50" style={{ borderColor: `${ACCENT_COLOR}44` }}>
+          Connect your Spotify account to use the web player.
+        </div>
+      )}
 
-            <div className="mt-6 flex items-center gap-3">
-              <button type="button" aria-label="Previous track" onClick={() => void sendPlaybackAction('previous')} className="rounded-full border p-3" style={{ borderColor: ACCENT_COLOR }}>
-                <SkipBack className="h-4 w-4" aria-hidden="true" />
-              </button>
-              <button type="button" aria-label={currentPlayback?.is_playing ? 'Pause track' : 'Play track'} onClick={() => void sendPlaybackAction(currentPlayback?.is_playing ? 'pause' : 'play')} className="rounded-full px-5 py-3 text-white" style={{ backgroundColor: ACCENT_COLOR }}>
-                {currentPlayback?.is_playing ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
-              </button>
-              <button type="button" aria-label="Next track" onClick={() => void sendPlaybackAction('next')} className="rounded-full border p-3" style={{ borderColor: ACCENT_COLOR }}>
-                <SkipForward className="h-4 w-4" aria-hidden="true" />
-              </button>
-              <div className="ml-auto flex items-center gap-3">
-                <Volume2 className="h-4 w-4" aria-hidden="true" />
-                <input aria-label="Volume" type="range" min={0} max={100} value={volume} onChange={(event) => void updateVolume(Number(event.target.value))} className="w-32 accent-current" style={{ accentColor: ACCENT_COLOR }} />
+      {/* Connected */}
+      {!loading && connected && (
+        <>
+          {/* Session expired */}
+          {needsReconnect && (
+            <div className="mt-4 rounded-2xl border border-dashed p-4 text-center" style={{ borderColor: `${ACCENT_COLOR}44` }}>
+              <p className="text-xs text-black/60 dark:text-white/50">Your Spotify session expired.</p>
+              <div className="mt-3 flex justify-center gap-2">
+                <button type="button" onClick={disconnect}
+                  className="rounded-full border px-3 py-1.5 text-[10px] font-medium text-black/50 dark:text-white/40"
+                  style={{ borderColor: `${ACCENT_COLOR}44` }}>
+                  Disconnect
+                </button>
+                <button type="button" onClick={() => { window.location.href = '/api/spotify/auth' }}
+                  className="rounded-full px-3 py-1.5 text-[10px] font-medium text-white"
+                  style={{ backgroundColor: ACCENT_COLOR }}>
+                  Reconnect
+                </button>
               </div>
             </div>
-          </div>
+          )}
 
-          <PlaylistPanel playlists={playlists} selectedPlaylistId={selectedPlaylist?.id ?? null} onSelectPlaylist={setSelectedPlaylist} />
-        </div>
-      ) : (
-        <div className="mt-6 rounded-3xl border border-dashed p-8 text-center text-sm text-black/70 dark:text-white/70" style={{ borderColor: `${ACCENT_COLOR}33` }}>
-          Connect Spotify to sync playlists and playback controls.
-        </div>
+          {/* Now playing */}
+          {!needsReconnect && (
+            <div className="mt-4">
+              {currentTrack ? (
+                <div className="flex gap-3">
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-black/10 dark:bg-white/10">
+                    {currentTrack.album.images[0]?.url && (
+                      <Image src={currentTrack.album.images[0].url} alt={currentTrack.name} fill className="object-cover" sizes="64px" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 self-center">
+                    <p className="text-[10px] uppercase tracking-widest text-black/40 dark:text-white/35">Now playing</p>
+                    <p className="mt-0.5 truncate text-sm font-semibold leading-tight">{currentTrack.name}</p>
+                    <p className="truncate text-xs text-black/55 dark:text-white/45">
+                      {currentTrack.artists.map((a) => a.name).join(', ')}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed px-4 py-5 text-center text-xs text-black/50 dark:text-white/40" style={{ borderColor: `${ACCENT_COLOR}33` }}>
+                  {playerReady ? 'Play a playlist below to start listening' : 'Connecting player…'}
+                </div>
+              )}
+
+              {/* Progress bar */}
+              <div className="mt-3">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                  <div
+                    className="h-full rounded-full transition-all duration-500 ease-linear"
+                    style={{ width: `${progress}%`, backgroundColor: ACCENT_COLOR }}
+                  />
+                </div>
+                <div className="mt-1 flex justify-between text-[10px] text-black/40 dark:text-white/35">
+                  <span>{fmtMs(localProgress)}</span>
+                  <span>{fmtMs(duration)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Controls */}
+          {!needsReconnect && (
+            <>
+              <div className="mt-3 flex items-center gap-2">
+                <button type="button" aria-label="Previous" onClick={() => void skipPrevious()}
+                  className="rounded-full border p-2.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-40"
+                  style={{ borderColor: `${ACCENT_COLOR}66` }}
+                  disabled={!playerReady}>
+                  <SkipBack className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" aria-label={paused ? 'Play' : 'Pause'}
+                  onClick={() => void togglePlay()}
+                  className="rounded-full p-3 text-white shadow-md disabled:opacity-40"
+                  style={{ backgroundColor: ACCENT_COLOR }}
+                  disabled={!playerReady}>
+                  {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                </button>
+                <button type="button" aria-label="Next" onClick={() => void skipNext()}
+                  className="rounded-full border p-2.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-40"
+                  style={{ borderColor: `${ACCENT_COLOR}66` }}
+                  disabled={!playerReady}>
+                  <SkipForward className="h-3.5 w-3.5" />
+                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <Volume2 className="h-3.5 w-3.5 shrink-0 text-black/40 dark:text-white/40" />
+                  <input type="range" min={0} max={100} value={volume}
+                    onChange={(e) => handleVolume(Number(e.target.value))} aria-label="Volume"
+                    className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-black/10 dark:bg-white/10"
+                    style={{ accentColor: ACCENT_COLOR }} />
+                </div>
+              </div>
+              {controlErrorLabel && (
+                <p className="mt-2 text-[11px] text-black/50 dark:text-white/40">{controlErrorLabel}</p>
+              )}
+            </>
+          )}
+
+          {/* Divider */}
+          <div className="my-4 border-t" style={{ borderColor: `${ACCENT_COLOR}22` }} />
+
+          {/* Tracks view */}
+          {openPlaylist ? (
+            <>
+              <div className="flex items-center gap-2">
+                <button type="button" aria-label="Back"
+                  onClick={() => { setOpenPlaylist(null); setSelectedId(null); setTracks([]); setTracksReason(null) }}
+                  className="rounded-full border p-1.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{ borderColor: `${ACCENT_COLOR}66` }}>
+                  <ArrowLeft className="h-3 w-3" />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold">{openPlaylist.name}</p>
+                  <p className="text-[10px] text-black/45 dark:text-white/40">
+                    {tracksLoading ? 'Loading…' : `${tracks.length} track${tracks.length === 1 ? '' : 's'}`}
+                  </p>
+                </div>
+                {playerReady && (
+                  <button type="button"
+                    onClick={() => void playContext(`spotify:playlist:${openPlaylist.id}`)}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-medium text-white"
+                    style={{ backgroundColor: ACCENT_COLOR }}>
+                    <Play className="h-2.5 w-2.5" />
+                    Play
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                {tracksLoading && [1, 2, 3].map((i) => (
+                  <div key={i} className="h-11 animate-pulse rounded-xl" style={{ backgroundColor: `${ACCENT_COLOR}14` }} />
+                ))}
+
+
+                {!tracksLoading && tracksReason === 'unauthorized' && (
+                  <div className="rounded-xl border border-dashed p-4 text-center" style={{ borderColor: `${ACCENT_COLOR}44` }}>
+                    <p className="text-xs text-black/60 dark:text-white/50">Session expired.</p>
+                    <div className="mt-3 flex justify-center gap-2">
+                      <button type="button" onClick={disconnect}
+                        className="rounded-full border px-3 py-1.5 text-[10px] font-medium text-black/50 dark:text-white/40"
+                        style={{ borderColor: `${ACCENT_COLOR}44` }}>
+                        Disconnect
+                      </button>
+                      <button type="button" onClick={() => { window.location.href = '/api/spotify/auth' }}
+                        className="rounded-full px-3 py-1.5 text-[10px] font-medium text-white"
+                        style={{ backgroundColor: ACCENT_COLOR }}>
+                        Reconnect
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!tracksLoading && (tracksReason === 'failed' || tracksReason === 'inaccessible') && (
+                  <p className="text-xs text-black/50 dark:text-white/40">Could not load tracks. Try again later.</p>
+                )}
+
+                {!tracksLoading && !tracksReason && tracks.length === 0 && (
+                  <p className="text-xs text-black/50 dark:text-white/40">This playlist is empty.</p>
+                )}
+
+                {tracks.map((t, idx) => (
+                  <button key={`${t.id}-${idx}`} type="button"
+                    onClick={() => void playContext(`spotify:playlist:${openPlaylist.id}`, `spotify:track:${t.id}`)}
+                    className="flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    style={{ borderColor: `${ACCENT_COLOR}22` }}>
+                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-black/10 dark:bg-white/10">
+                      {t.albumArt && <Image src={t.albumArt} alt={t.trackName} fill className="object-cover" sizes="32px" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold">{t.trackName}</p>
+                      <p className="truncate text-[10px] text-black/45 dark:text-white/40">{t.artistName}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] text-black/40 dark:text-white/35">{fmtMs(t.durationMs)}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-black/50 dark:text-white/40">Playlists</p>
+                <Music2 className="h-3.5 w-3.5 text-black/30 dark:text-white/30" />
+              </div>
+
+              <div className="mt-3 max-h-64 space-y-2 overflow-y-auto scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                {playlists.length === 0 && (
+                  <p className="text-xs text-black/50 dark:text-white/40">No playlists found.</p>
+                )}
+                {sortedPlaylists.map((pl) => {
+                  const isSelected = pl.id === selectedId
+                  return (
+                    <button key={pl.id} type="button"
+                      onClick={() => void openPlaylistTracks(pl)}
+                      className="flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                      style={{ borderColor: isSelected ? ACCENT_COLOR : `${ACCENT_COLOR}30` }}>
+                      <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-black/10 dark:bg-white/10">
+                        {pl.imageUrl && <Image src={pl.imageUrl} alt={pl.name} fill className="object-cover" sizes="36px" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold">{pl.name}</p>
+                        <p className="text-[10px] text-black/45 dark:text-white/40">
+                          {pl.trackCount} {pl.trackCount === 1 ? 'track' : 'tracks'}
+                          {!pl.isOwned && ' · followed'}
+                        </p>
+                      </div>
+                      {isSelected && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: ACCENT_COLOR }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </>
       )}
     </section>
   )

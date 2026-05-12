@@ -58,6 +58,7 @@ export interface SpotifyPlaylist {
   name: string
   imageUrl: string
   trackCount: number
+  isOwned: boolean
 }
 
 export interface SpotifyTrack {

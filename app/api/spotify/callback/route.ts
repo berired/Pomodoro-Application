@@ -1,7 +1,8 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { supabaseAdmin } from '@/lib/supabase'
+import { signState } from '@/lib/spotifyState'
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET
@@ -9,8 +10,9 @@ const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localho
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    const authSession = await auth()
-    if (!authSession?.user?.id) {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
 
@@ -21,8 +23,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(new URL('/?error=auth_failed', req.url))
     }
 
-    const storedState = req.cookies.get('spotify_auth_state')?.value
-    if (state !== storedState) {
+    const [nonce, sig] = (state ?? '').split('.')
+    if (!nonce || !sig || signState(nonce, user.id) !== sig) {
       return NextResponse.redirect(new URL('/?error=state_mismatch', req.url))
     }
 
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const { error } = await supabaseAdmin.from('spotify_tokens').upsert(
       {
-        user_id: authSession.user.id,
+        user_id: user.id,
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
         expires_at: expiresAt.toISOString(),
@@ -63,9 +65,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(new URL('/?error=storage_failed', req.url))
     }
 
-    const response = NextResponse.redirect(new URL('/', req.url))
-    response.cookies.delete('spotify_auth_state')
-    return response
+    return NextResponse.redirect(new URL('/', req.url))
   } catch {
     return NextResponse.redirect(new URL('/?error=server_error', req.url))
   }

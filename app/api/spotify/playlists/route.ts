@@ -1,47 +1,55 @@
 import 'server-only'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { supabaseAdmin } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSpotifyToken } from '@/lib/spotifyToken'
 import type { SpotifyPlaylist } from '@/types'
 
 export async function GET(_req: NextRequest): Promise<NextResponse> {
   try {
     void _req
-    const authSession = await auth()
-    if (!authSession?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data: tokenRow, error } = await supabaseAdmin
-      .from('spotify_tokens')
-      .select('access_token')
-      .eq('user_id', authSession.user.id)
-      .maybeSingle()
+    const accessToken = await getSpotifyToken(user.id)
+    if (!accessToken) return NextResponse.json({ error: 'Not connected' }, { status: 404 })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    // Fetch current Spotify user ID and playlists in parallel
+    const [meRes, plRes] = await Promise.all([
+      fetch('https://api.spotify.com/v1/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+      fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+    ])
 
-    if (!tokenRow?.access_token) {
-      return NextResponse.json({ error: 'Not connected' }, { status: 404 })
-    }
+    if (!plRes.ok) return NextResponse.json({ error: 'Failed to fetch playlists' }, { status: 502 })
 
-    const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=20', {
-      headers: { Authorization: `Bearer ${tokenRow.access_token}` },
+    const spotifyUserId: string = meRes.ok
+      ? ((await meRes.json()) as { id: string }).id
+      : ''
+
+    const spotifyData = await plRes.json()
+    const playlists: SpotifyPlaylist[] = (
+      spotifyData.items as Array<Record<string, unknown>>
+    ).map((pl) => {
+      const owner = pl.owner as Record<string, unknown> | undefined
+      return {
+        id: String(pl.id ?? ''),
+        name: String(pl.name ?? ''),
+        imageUrl: String(
+          (pl.images as Array<Record<string, unknown>> | undefined)?.[0]?.url ?? '',
+        ),
+        trackCount: Number(
+          (pl.tracks as Record<string, unknown> | undefined)?.total ??
+          (pl.items as Record<string, unknown> | undefined)?.total ??
+          0,
+        ),
+        isOwned: !!spotifyUserId && owner?.id === spotifyUserId,
+      }
     })
-
-    if (!response.ok) {
-      return NextResponse.json({ error: 'Failed to fetch playlists' }, { status: 502 })
-    }
-
-    const spotifyData = await response.json()
-    const playlists: SpotifyPlaylist[] = (spotifyData.items as Array<Record<string, unknown>>).map((playlist) => ({
-      id: String(playlist.id ?? ''),
-      name: String(playlist.name ?? ''),
-      imageUrl: String((playlist.images as Array<Record<string, unknown>> | undefined)?.[0]?.url ?? ''),
-      trackCount: Number((playlist.tracks as Record<string, unknown> | undefined)?.total ?? 0),
-    }))
 
     return NextResponse.json(playlists)
   } catch {
