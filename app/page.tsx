@@ -1,103 +1,126 @@
-import Image from "next/image";
+import Link from 'next/link'
+import { CalendarDays, CheckSquare, Flame, Music4, School, TimerReset, UserCircle } from 'lucide-react'
+import { auth } from '@/lib/auth'
+import { ACCENT_COLOR } from '@/lib/constants'
+import NavBar from '@/components/NavBar'
+import PomodoroTimer from '@/components/PomodoroTimer'
+import Heatmap from '@/components/Heatmap'
+import SpotifyPlayer from '@/components/SpotifyPlayer'
 
-export default function Home() {
+const features = [
+  { icon: TimerReset, title: 'Pomodoro Timer', description: 'Structured focus sessions and breaks.' },
+  { icon: Music4, title: 'Spotify Player', description: 'Music controls and playlist access in one place.' },
+  { icon: School, title: 'Class Schedule', description: 'Weekly class blocks for faster planning.' },
+  { icon: Flame, title: 'Login Heatmap', description: 'Visualize your study and login streaks.' },
+  { icon: CalendarDays, title: 'Calendar View', description: 'Balance tasks, classes, and deadlines.' },
+  { icon: CheckSquare, title: 'To-Do Lists', description: 'Track Canvas and personal assignments.' },
+]
+
+function LandingPage(): React.JSX.Element {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <main className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
+      <section className="mx-auto flex min-h-screen w-full max-w-7xl flex-col justify-center px-6 py-16 lg:px-10">
+        <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-3 rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ACCENT_COLOR }} />
+              Student productivity system
+            </div>
+            <div className="space-y-5">
+              <h1 className="max-w-3xl text-5xl font-semibold tracking-tight sm:text-6xl lg:text-7xl">
+                A focused workspace for school, study, and momentum.
+              </h1>
+              <p className="max-w-2xl text-lg text-black/70 dark:text-white/70 sm:text-xl">
+                Pomodoro sessions, playlists, assignments, schedules, and calendar planning all live in one cohesive app.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <Link className="rounded-full px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90" href="/login" style={{ backgroundColor: ACCENT_COLOR }}>
+                Log In
+              </Link>
+              <Link className="rounded-full border px-6 py-3 text-sm font-medium transition-colors hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black" href="/register" style={{ borderColor: ACCENT_COLOR }}>
+                Sign Up
+              </Link>
+            </div>
+          </div>
+          <div className="grid gap-4 rounded-3xl border p-6 shadow-[0_24px_80px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(255,255,255,0.06)]" style={{ borderColor: ACCENT_COLOR }}>
+            {features.map((feature) => {
+              const Icon = feature.icon
+              return (
+                <div key={feature.title} className="rounded-2xl border p-4" style={{ borderColor: `${ACCENT_COLOR}33` }}>
+                  <div className="flex items-start gap-4">
+                    <div className="rounded-xl p-3 text-white" style={{ backgroundColor: ACCENT_COLOR }}>
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-base font-semibold">{feature.title}</h2>
+                      <p className="text-sm text-black/70 dark:text-white/70">{feature.description}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+    </main>
+  )
+}
+
+function DashboardPage({ username }: { username: string }): React.JSX.Element {
+  return (
+    <main className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-10">
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-semibold">Welcome back, {username}</h1>
+              <p className="mt-2 text-sm text-black/70 dark:text-white/70">Your home dashboard will host Pomodoro, Spotify, and progress tracking.</p>
+            </div>
+            <UserCircle className="h-10 w-10" aria-hidden="true" />
+          </div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {features.map((feature) => {
+              const Icon = feature.icon
+              return (
+                <div key={feature.title} className="rounded-2xl border p-4" style={{ borderColor: `${ACCENT_COLOR}33` }}>
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  <h2 className="mt-3 text-sm font-semibold">{feature.title}</h2>
+                  <p className="mt-1 text-sm text-black/70 dark:text-white/70">{feature.description}</p>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+        <aside className="space-y-6">
+          <SpotifyPlayer />
+          <PomodoroTimer />
+          <Heatmap />
+          <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
+            <h2 className="text-xl font-semibold">Quick actions</h2>
+            <div className="mt-4 flex flex-col gap-3">
+              <Link href="/academics" className="rounded-2xl border px-4 py-3" style={{ borderColor: ACCENT_COLOR }}>Open Academics</Link>
+              <Link href="/calendar" className="rounded-2xl border px-4 py-3" style={{ borderColor: ACCENT_COLOR }}>Open Calendar</Link>
+              <Link href="/profile" className="rounded-2xl border px-4 py-3" style={{ borderColor: ACCENT_COLOR }}>Open Profile</Link>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  )
+}
+
+export default async function Home(): Promise<React.JSX.Element> {
+  const authSession = await auth()
+
+  if (!authSession?.user?.id) {
+    return <LandingPage />
+  }
+
+  return (
+    <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
+      <NavBar username={authSession.user.username} />
+      <DashboardPage username={authSession.user.username} />
     </div>
-  );
+  )
 }
