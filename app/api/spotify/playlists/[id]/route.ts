@@ -50,7 +50,7 @@ async function fetchAllTracks(playlistId: string, token: string): Promise<Spotif
     `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=50`,
     token,
   )
-  let items: RawItem[] = first.items ?? []
+  const items: RawItem[] = first.items ?? []
   let nextUrl: string | null = first.next ?? null
 
   while (nextUrl && items.length < 500) {
