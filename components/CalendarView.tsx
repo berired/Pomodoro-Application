@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock3, X } from 'lucide-react'
-import { ACCENT_COLOR, DAYS_OF_WEEK } from '@/lib/constants'
+import { DAYS_OF_WEEK } from '@/lib/constants'
 import type { TaskRow } from '@/types'
 
 interface CalendarViewProps {
@@ -81,23 +81,33 @@ export default function CalendarView({ taskRows }: CalendarViewProps): React.JSX
   }, [selectedDay])
 
   return (
-    <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
+    <section className="rounded-3xl border border-primary p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Calendar</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Calendar</p>
           <h2 className="mt-2 text-2xl font-semibold">{getMonthLabel(currentMonth)}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" aria-label="Previous month" onClick={() => setCurrentMonth((m) => addMonths(m, -1))} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
+          <button
+            type="button"
+            aria-label="Previous month"
+            onClick={() => setCurrentMonth((m) => addMonths(m, -1))}
+            className="rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
+          >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Next month" onClick={() => setCurrentMonth((m) => addMonths(m, 1))} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
+          <button
+            type="button"
+            aria-label="Next month"
+            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+            className="rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
+          >
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-7 gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-black/60 dark:text-white/60">
+      <div className="mt-6 grid grid-cols-7 gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {DAYS_OF_WEEK.map((d) => (
           <div key={d} className="px-3 py-2 text-center">{d.slice(0, 3)}</div>
         ))}
@@ -109,25 +119,30 @@ export default function CalendarView({ taskRows }: CalendarViewProps): React.JSX
             key={cell.dateKey}
             type="button"
             onClick={() => setSelectedDay({ dateKey: cell.dateKey, weekdayName: cell.weekdayName, items: cell.items })}
-            className="min-h-36 rounded-2xl border p-3 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-            style={{
-              borderColor: `${ACCENT_COLOR}33`,
-              backgroundColor: cell.isToday ? ACCENT_COLOR : undefined,
-              color: cell.isToday ? '#ffffff' : undefined,
-              opacity: cell.dayNumber === null ? 0.45 : 1,
-            }}
+            className={`min-h-36 rounded-2xl border p-3 text-left transition-colors ${
+              cell.isToday
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-primary/20 hover:bg-primary/8'
+            } ${cell.dayNumber === null ? 'opacity-40' : ''}`}
           >
             <div className="flex items-start justify-between gap-3">
               <span className="text-sm font-semibold">{cell.dateKey.slice(8, 10)}</span>
               {cell.items.length > 0 && (
-                <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: cell.isToday ? 'rgba(255,255,255,0.15)' : `${ACCENT_COLOR}14` }}>
+                <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                  cell.isToday ? 'bg-white/15 text-inherit' : 'bg-primary/10 text-primary'
+                }`}>
                   {cell.items.length}
                 </span>
               )}
             </div>
             <div className="mt-3 space-y-2">
               {cell.items.slice(0, 3).map((item) => (
-                <div key={item.id} className="rounded-xl border px-2 py-1 text-xs" style={{ borderColor: cell.isToday ? 'rgba(255,255,255,0.25)' : `${ACCENT_COLOR}26` }}>
+                <div
+                  key={item.id}
+                  className={`rounded-xl border px-2 py-1 text-xs ${
+                    cell.isToday ? 'border-white/25' : 'border-primary/15'
+                  }`}
+                >
                   <div className="flex items-center gap-2">
                     <Clock3 className="h-3 w-3 shrink-0" aria-hidden="true" />
                     <span className="truncate font-medium">{item.title}</span>
@@ -135,7 +150,9 @@ export default function CalendarView({ taskRows }: CalendarViewProps): React.JSX
                   <p className="mt-1 truncate opacity-75">{item.timeLabel}</p>
                 </div>
               ))}
-              {cell.items.length > 3 && <p className="text-[11px] opacity-75">+{cell.items.length - 3} more</p>}
+              {cell.items.length > 3 && (
+                <p className="text-[11px] opacity-75">+{cell.items.length - 3} more</p>
+              )}
             </div>
           </button>
         ))}
@@ -143,8 +160,7 @@ export default function CalendarView({ taskRows }: CalendarViewProps): React.JSX
 
       <dialog
         id="calendar-detail-dialog"
-        className="fixed inset-0 m-auto h-fit w-full max-w-lg rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white"
-        style={{ borderColor: ACCENT_COLOR }}
+        className="fixed inset-0 m-auto h-fit w-full max-w-lg rounded-3xl border border-primary bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/60"
         onCancel={() => setSelectedDay(null)}
       >
         {selectedDay && (
@@ -152,26 +168,31 @@ export default function CalendarView({ taskRows }: CalendarViewProps): React.JSX
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-semibold">{selectedDay.dateKey}</h3>
-                <p className="mt-1 text-sm text-black/60 dark:text-white/50">{selectedDay.weekdayName}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{selectedDay.weekdayName}</p>
               </div>
-              <button type="button" aria-label="Close" onClick={() => setSelectedDay(null)} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setSelectedDay(null)}
+                className="rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 
             {selectedDay.items.length === 0 ? (
-              <p className="text-sm text-black/60 dark:text-white/50">No tasks scheduled for this day.</p>
+              <p className="text-sm text-muted-foreground">No tasks scheduled for this day.</p>
             ) : (
               <div className="space-y-3">
                 {selectedDay.items.map((item) => (
-                  <article key={item.id} className="rounded-2xl border p-4" style={{ borderColor: `${ACCENT_COLOR}33` }}>
+                  <article key={item.id} className="rounded-2xl border border-primary/20 p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-sm font-semibold">{item.title}</p>
-                        <p className="mt-1 text-xs text-black/60 dark:text-white/50">{item.timeLabel}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{item.timeLabel}</p>
                       </div>
                       {item.completed && (
-                        <span className="rounded-full px-3 py-1 text-xs font-medium text-green-600" style={{ backgroundColor: '#dcfce7' }}>
+                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-400">
                           Done
                         </span>
                       )}

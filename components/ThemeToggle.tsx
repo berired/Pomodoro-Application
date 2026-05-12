@@ -2,7 +2,6 @@
 
 import { Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { ACCENT_COLOR } from '@/lib/constants'
 
 export default function ThemeToggle(): React.JSX.Element {
   const [isDark, setIsDark] = useState(true)
@@ -26,8 +25,7 @@ export default function ThemeToggle(): React.JSX.Element {
       type="button"
       aria-label="Toggle theme"
       onClick={toggleTheme}
-      className="inline-flex items-center justify-center rounded-full border p-2 transition-colors hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-      style={{ borderColor: ACCENT_COLOR }}
+      className="inline-flex items-center justify-center rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
     >
       {isDark ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
     </button>

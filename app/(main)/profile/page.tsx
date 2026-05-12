@@ -27,23 +27,23 @@ export default async function ProfilePage(): Promise<React.JSX.Element> {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-8 lg:px-10">
-      <section className="rounded-3xl border p-6" style={{ borderColor: '#3A0A4E' }}>
+      <section className="rounded-3xl border border-primary p-6">
         <h1 className="text-3xl font-semibold">Profile</h1>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div>
-            <p className="text-sm text-black/70 dark:text-white/70">Name</p>
+            <p className="text-sm text-muted-foreground">Name</p>
             <p className="mt-1 text-lg font-medium">{profileRow?.name ?? user.user_metadata?.full_name ?? 'Student'}</p>
           </div>
           <div>
-            <p className="text-sm text-black/70 dark:text-white/70">Username</p>
+            <p className="text-sm text-muted-foreground">Username</p>
             <p className="mt-1 text-lg font-medium">{profileRow?.username ?? (user.user_metadata?.username as string | undefined) ?? ''}</p>
           </div>
           <div>
-            <p className="text-sm text-black/70 dark:text-white/70">Email</p>
+            <p className="text-sm text-muted-foreground">Email</p>
             <p className="mt-1 text-lg font-medium">{profileRow?.email ?? user.email ?? ''}</p>
           </div>
           <div>
-            <p className="text-sm text-black/70 dark:text-white/70">School</p>
+            <p className="text-sm text-muted-foreground">School</p>
             <p className="mt-1 text-lg font-medium">{profileRow?.school ?? 'Not set'}</p>
           </div>
         </div>

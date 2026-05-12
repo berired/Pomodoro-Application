@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircle, ChevronRight, Loader2, X } from 'lucide-react'
-import { ACCENT_COLOR } from '@/lib/constants'
 
 interface ProfileSettingsProps {
   initialProfile: {
@@ -49,6 +48,8 @@ const CANVAS_STEPS = [
   { step: 4, label: 'Click "+ New Access Token"', detail: 'Enter a purpose like "Pomodoro App" and leave expiry blank for permanent access.' },
   { step: 5, label: 'Copy the token', detail: 'Canvas shows the token once — copy it now and paste it below.' },
 ]
+
+const inputClass = 'w-full rounded-xl border border-primary bg-transparent px-4 py-2.5 text-sm'
 
 export default function ProfileSettings({ initialProfile }: ProfileSettingsProps): React.JSX.Element {
   const [profileMsg, setProfileMsg] = useState<{ text: string; ok: boolean } | null>(null)
@@ -182,71 +183,106 @@ export default function ProfileSettings({ initialProfile }: ProfileSettingsProps
   }
 
   return (
-    <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
-      <h2 className="text-2xl font-semibold">Profile settings</h2>
-      <p className="mt-1 text-sm text-black/60 dark:text-white/50">Manage your account, Canvas connection, and password.</p>
+    <section className="rounded-3xl border border-primary p-6">
+      <h2 className="text-2xl font-semibold">Settings</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Manage your account, Canvas connection, and password.</p>
 
       {profileMsg && (
-        <p className={`mt-3 text-sm ${profileMsg.ok ? 'text-green-500' : 'text-red-500'}`}>{profileMsg.text}</p>
+        <p className={`mt-3 text-sm ${profileMsg.ok ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+          {profileMsg.text}
+        </p>
       )}
 
-      {/* Action buttons */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <button type="button" onClick={() => { setProfileMsg(null); editRef.current?.showModal() }} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ borderColor: `${ACCENT_COLOR}66` }}>
+        <button
+          type="button"
+          onClick={() => { setProfileMsg(null); editRef.current?.showModal() }}
+          className="flex items-center justify-between rounded-2xl border border-primary/40 px-4 py-3 text-sm transition-colors hover:bg-primary/8"
+        >
           Edit profile
-          <ChevronRight className="h-4 w-4 opacity-40" />
+          <ChevronRight className="h-4 w-4 opacity-40" aria-hidden="true" />
         </button>
-        <button type="button" onClick={openCanvas} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ borderColor: `${ACCENT_COLOR}66` }}>
+        <button
+          type="button"
+          onClick={openCanvas}
+          className="flex items-center justify-between rounded-2xl border border-primary/40 px-4 py-3 text-sm transition-colors hover:bg-primary/8"
+        >
           <span className="flex items-center gap-2">
             {canvasDomain
-              ? <><CheckCircle className="h-4 w-4 text-green-500" /> Canvas connected</>
+              ? <><CheckCircle className="h-4 w-4 text-green-500" aria-hidden="true" /> Canvas connected</>
               : 'Connect Canvas'}
           </span>
-          <ChevronRight className="h-4 w-4 opacity-40" />
+          <ChevronRight className="h-4 w-4 opacity-40" aria-hidden="true" />
         </button>
-        <button type="button" onClick={() => { setPasswordMsg(null); passwordRef.current?.showModal() }} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ borderColor: `${ACCENT_COLOR}66` }}>
+        <button
+          type="button"
+          onClick={() => { setPasswordMsg(null); passwordRef.current?.showModal() }}
+          className="flex items-center justify-between rounded-2xl border border-primary/40 px-4 py-3 text-sm transition-colors hover:bg-primary/8"
+        >
           Change password
-          <ChevronRight className="h-4 w-4 opacity-40" />
+          <ChevronRight className="h-4 w-4 opacity-40" aria-hidden="true" />
         </button>
       </div>
 
       {canvasDomain && (
-        <p className="mt-3 text-xs text-black/50 dark:text-white/40">
+        <p className="mt-3 text-xs text-muted-foreground">
           Connected to <span className="font-medium">{canvasDomain}</span>
         </p>
       )}
 
       {/* ── Edit profile dialog ── */}
-      <dialog ref={editRef} className="fixed inset-0 m-auto h-fit w-full max-w-lg rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={() => editRef.current?.close()}>
+      <dialog
+        ref={editRef}
+        className="fixed inset-0 m-auto h-fit w-full max-w-lg rounded-3xl border border-primary bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/60"
+        onCancel={() => editRef.current?.close()}
+      >
         <form onSubmit={editForm.handleSubmit(submitEditProfile)} className="space-y-5 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-xl font-semibold">Edit profile</h3>
-              <p className="mt-1 text-sm text-black/60 dark:text-white/50">Update your name, username, and school.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Update your name, username, and school.</p>
             </div>
-            <button type="button" onClick={() => editRef.current?.close()} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
-              <X className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={() => editRef.current?.close()}
+              className="rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1.5">
               <span className="text-sm font-medium">Full name</span>
-              <input {...editForm.register('fullName')} className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {editForm.formState.errors.fullName && <p className="text-xs text-red-500">{editForm.formState.errors.fullName.message}</p>}
+              <input {...editForm.register('fullName')} className={inputClass} />
+              {editForm.formState.errors.fullName && (
+                <p className="text-xs text-destructive">{editForm.formState.errors.fullName.message}</p>
+              )}
             </label>
             <label className="space-y-1.5">
               <span className="text-sm font-medium">Username</span>
-              <input {...editForm.register('username')} className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {editForm.formState.errors.username && <p className="text-xs text-red-500">{editForm.formState.errors.username.message}</p>}
+              <input {...editForm.register('username')} className={inputClass} />
+              {editForm.formState.errors.username && (
+                <p className="text-xs text-destructive">{editForm.formState.errors.username.message}</p>
+              )}
             </label>
             <label className="space-y-1.5 sm:col-span-2">
               <span className="text-sm font-medium">School</span>
-              <input {...editForm.register('school')} className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none" style={{ borderColor: ACCENT_COLOR }} />
+              <input {...editForm.register('school')} className={inputClass} />
             </label>
           </div>
           <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={() => editRef.current?.close()} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>Cancel</button>
-            <button type="submit" disabled={editForm.formState.isSubmitting} className="rounded-full px-4 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
+            <button
+              type="button"
+              onClick={() => editRef.current?.close()}
+              className="rounded-full border border-primary/60 px-4 py-2 text-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editForm.formState.isSubmitting}
+              className="rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
               {editForm.formState.isSubmitting ? 'Saving…' : 'Save changes'}
             </button>
           </div>
@@ -254,43 +290,52 @@ export default function ProfileSettings({ initialProfile }: ProfileSettingsProps
       </dialog>
 
       {/* ── Canvas connection dialog ── */}
-      <dialog ref={canvasRef} className="fixed inset-0 m-auto h-fit w-full max-w-xl rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={() => canvasRef.current?.close()}>
+      <dialog
+        ref={canvasRef}
+        className="fixed inset-0 m-auto h-fit w-full max-w-xl rounded-3xl border border-primary bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/60"
+        onCancel={() => canvasRef.current?.close()}
+      >
         <div className="space-y-5 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-xl font-semibold">Connect Canvas</h3>
-              <p className="mt-1 text-sm text-black/60 dark:text-white/50">Use a personal access token to link your Canvas account.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Use a personal access token to link your Canvas account.</p>
             </div>
-            <button type="button" onClick={() => canvasRef.current?.close()} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
-              <X className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={() => canvasRef.current?.close()}
+              className="rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
-          {/* Step-by-step guide */}
-          <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: `${ACCENT_COLOR}44` }}>
-            <p className="text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/40">How to get your token</p>
+          <div className="rounded-2xl border border-primary/25 p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">How to get your token</p>
             {CANVAS_STEPS.map(({ step, label, detail }) => (
               <div key={step} className="flex gap-3">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: ACCENT_COLOR }}>{step}</span>
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {step}
+                </span>
                 <div>
                   <p className="text-sm font-medium">{label}</p>
-                  <p className="text-xs text-black/55 dark:text-white/45">{detail}</p>
+                  <p className="text-xs text-muted-foreground">{detail}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Fields */}
           <form onSubmit={(e) => { e.preventDefault(); void handleVerify() }} className="space-y-3">
             <label className="block space-y-1.5">
               <span className="text-sm font-medium">Canvas domain</span>
               <input
                 {...canvasForm.register('domain')}
                 placeholder="myschool.instructure.com"
-                className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none"
-                style={{ borderColor: ACCENT_COLOR }}
+                className={inputClass}
               />
-              {canvasForm.formState.errors.domain && <p className="text-xs text-red-500">{canvasForm.formState.errors.domain.message}</p>}
+              {canvasForm.formState.errors.domain && (
+                <p className="text-xs text-destructive">{canvasForm.formState.errors.domain.message}</p>
+              )}
             </label>
             <label className="block space-y-1.5">
               <span className="text-sm font-medium">Personal access token</span>
@@ -298,36 +343,54 @@ export default function ProfileSettings({ initialProfile }: ProfileSettingsProps
                 {...canvasForm.register('token')}
                 type="password"
                 placeholder="Paste token here"
-                className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none"
-                style={{ borderColor: ACCENT_COLOR }}
+                className={inputClass}
               />
-              {canvasForm.formState.errors.token && <p className="text-xs text-red-500">{canvasForm.formState.errors.token.message}</p>}
+              {canvasForm.formState.errors.token && (
+                <p className="text-xs text-destructive">{canvasForm.formState.errors.token.message}</p>
+              )}
             </label>
 
-            {verifyError && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">{verifyError}</p>}
+            {verifyError && (
+              <p className="rounded-xl border border-destructive/20 bg-destructive/8 px-4 py-2.5 text-sm text-destructive">
+                {verifyError}
+              </p>
+            )}
 
             {verifiedUser && (
-              <div className="flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm" style={{ borderColor: `${ACCENT_COLOR}55`, backgroundColor: `${ACCENT_COLOR}10` }}>
-                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+              <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/8 px-4 py-2.5 text-sm">
+                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" aria-hidden="true" />
                 <span>Verified as <strong>{verifiedUser.name}</strong></span>
               </div>
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
               {canvasDomain && (
-                <button type="button" onClick={() => void handleDisconnectCanvas()} className="text-sm text-red-500 hover:underline">
+                <button
+                  type="button"
+                  onClick={() => void handleDisconnectCanvas()}
+                  className="text-sm text-destructive hover:underline"
+                >
                   Disconnect Canvas
                 </button>
               )}
               <div className="ml-auto flex gap-3">
                 {!verifiedUser ? (
-                  <button type="submit" disabled={verifying} className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
-                    {verifying && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <button
+                    type="submit"
+                    disabled={verifying}
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+                  >
+                    {verifying && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
                     {verifying ? 'Verifying…' : 'Verify token'}
                   </button>
                 ) : (
-                  <button type="button" onClick={() => void handleSaveCanvas()} disabled={saving} className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
-                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveCanvas()}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+                  >
+                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
                     {saving ? 'Saving…' : 'Save & connect'}
                   </button>
                 )}
@@ -338,28 +401,54 @@ export default function ProfileSettings({ initialProfile }: ProfileSettingsProps
       </dialog>
 
       {/* ── Change password dialog ── */}
-      <dialog ref={passwordRef} className="fixed inset-0 m-auto h-fit w-full max-w-lg rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={() => passwordRef.current?.close()}>
+      <dialog
+        ref={passwordRef}
+        className="fixed inset-0 m-auto h-fit w-full max-w-lg rounded-3xl border border-primary bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/60"
+        onCancel={() => passwordRef.current?.close()}
+      >
         <form onSubmit={passwordForm.handleSubmit(submitPasswordChange)} className="space-y-4 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-xl font-semibold">Change password</h3>
-              <p className="mt-1 text-sm text-black/60 dark:text-white/50">Confirm your current password before setting a new one.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Confirm your current password before setting a new one.</p>
             </div>
-            <button type="button" onClick={() => passwordRef.current?.close()} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
-              <X className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={() => passwordRef.current?.close()}
+              className="rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
-          {passwordMsg && <p className={`text-sm ${passwordMsg.ok ? 'text-green-500' : 'text-red-500'}`}>{passwordMsg.text}</p>}
+          {passwordMsg && (
+            <p className={`text-sm ${passwordMsg.ok ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+              {passwordMsg.text}
+            </p>
+          )}
           {(['oldPassword', 'newPassword', 'confirmPassword'] as const).map((field) => (
             <label key={field} className="block space-y-1.5">
-              <span className="text-sm font-medium capitalize">{field === 'oldPassword' ? 'Current password' : field === 'newPassword' ? 'New password' : 'Confirm new password'}</span>
-              <input {...passwordForm.register(field)} type="password" className="w-full rounded-xl border bg-transparent px-4 py-2.5 text-sm outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {passwordForm.formState.errors[field] && <p className="text-xs text-red-500">{passwordForm.formState.errors[field]?.message}</p>}
+              <span className="text-sm font-medium">
+                {field === 'oldPassword' ? 'Current password' : field === 'newPassword' ? 'New password' : 'Confirm new password'}
+              </span>
+              <input {...passwordForm.register(field)} type="password" className={inputClass} />
+              {passwordForm.formState.errors[field] && (
+                <p className="text-xs text-destructive">{passwordForm.formState.errors[field]?.message}</p>
+              )}
             </label>
           ))}
           <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={() => passwordRef.current?.close()} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>Cancel</button>
-            <button type="submit" disabled={passwordForm.formState.isSubmitting} className="rounded-full px-4 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
+            <button
+              type="button"
+              onClick={() => passwordRef.current?.close()}
+              className="rounded-full border border-primary/60 px-4 py-2 text-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={passwordForm.formState.isSubmitting}
+              className="rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
               {passwordForm.formState.isSubmitting ? 'Updating…' : 'Update password'}
             </button>
           </div>

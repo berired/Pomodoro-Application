@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Pause, Pencil, Play, RotateCcw } from 'lucide-react'
-import { ACCENT_COLOR } from '@/lib/constants'
 
 const DEFAULT_FOCUS_MINS = 25
 const DEFAULT_BREAK_MINS = 5
@@ -20,7 +19,6 @@ export default function PomodoroTimer(): React.JSX.Element {
   const [draftValue, setDraftValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Keep refs in sync so interval closure always reads latest values
   const focusMinsRef = useRef(focusMins)
   const breakMinsRef = useRef(breakMins)
   useEffect(() => { focusMinsRef.current = focusMins }, [focusMins])
@@ -120,17 +118,18 @@ export default function PomodoroTimer(): React.JSX.Element {
   }
 
   return (
-    <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
+    <section className="rounded-3xl border border-primary p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Pomodoro</p>
-          <h2 className="mt-2 text-2xl font-semibold">{mode === 'focus' ? 'Focus session' : 'Break session'}</h2>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pomodoro</p>
+          <h2 className="mt-2 text-2xl font-semibold">
+            {mode === 'focus' ? 'Focus session' : 'Break session'}
+          </h2>
         </div>
         <button
           type="button"
           onClick={switchMode}
-          className="rounded-full border px-4 py-2 text-sm"
-          style={{ borderColor: ACCENT_COLOR }}
+          className="rounded-full border border-primary/60 px-4 py-2 text-sm transition-colors hover:bg-primary hover:text-primary-foreground"
         >
           Switch mode
         </button>
@@ -146,10 +145,9 @@ export default function PomodoroTimer(): React.JSX.Element {
           return (
             <div
               key={target}
-              className="flex flex-col items-center gap-1 rounded-2xl border px-4 py-3 text-center"
-              style={{ borderColor: `${ACCENT_COLOR}99` }}
+              className="flex flex-col items-center gap-1 rounded-2xl border border-primary/40 px-4 py-3 text-center"
             >
-              <span className="w-full text-center text-xs uppercase tracking-widest text-black/50 dark:text-white/40">
+              <span className="w-full text-center text-xs uppercase tracking-widest text-muted-foreground">
                 {label}
               </span>
               {isActive ? (
@@ -162,16 +160,18 @@ export default function PomodoroTimer(): React.JSX.Element {
                   onChange={(e) => setDraftValue(e.target.value)}
                   onBlur={commitEdit}
                   onKeyDown={handleKeyDown}
-                  className="w-full bg-transparent text-center text-2xl font-semibold tabular-nums outline-none"
+                  className="w-full bg-transparent text-center text-2xl font-semibold tabular-nums"
+                  aria-label={`${label} duration in minutes`}
                 />
               ) : (
                 <button
                   type="button"
                   onClick={() => openEdit(target)}
                   className="group flex w-full items-center justify-center gap-2 text-2xl font-semibold tabular-nums"
+                  aria-label={`Edit ${label.toLowerCase()} duration: ${mins} minutes`}
                 >
                   {String(mins).padStart(2, '0')}m
-                  <Pencil className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-50" aria-hidden="true" />
+                  <Pencil className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-40" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -189,17 +189,18 @@ export default function PomodoroTimer(): React.JSX.Element {
               fill="none"
               stroke="currentColor"
               strokeWidth="12"
-              className="text-black/10 dark:text-white/10"
+              className="text-foreground/10"
             />
             {/* Progress arc */}
             <circle
               cx="90" cy="90" r={RADIUS}
               fill="none"
-              stroke={ACCENT_COLOR}
+              stroke="currentColor"
               strokeWidth="12"
               strokeLinecap="round"
               strokeDasharray={CIRCUMFERENCE}
               strokeDashoffset={dashOffset}
+              className="text-primary"
               style={{ transition: 'stroke-dashoffset 1s linear' }}
             />
           </svg>
@@ -207,7 +208,9 @@ export default function PomodoroTimer(): React.JSX.Element {
             <p className="text-5xl font-semibold tabular-nums">
               {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:{String(secondsLeft % 60).padStart(2, '0')}
             </p>
-            <p className="mt-2 text-sm text-black/60 dark:text-white/60">{isRunning ? 'Running' : 'Paused'}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {isRunning ? 'Running' : 'Paused'}
+            </p>
           </div>
         </div>
       </div>
@@ -218,8 +221,7 @@ export default function PomodoroTimer(): React.JSX.Element {
           type="button"
           aria-label={isRunning ? 'Pause timer' : 'Start timer'}
           onClick={toggleRunning}
-          className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-white"
-          style={{ backgroundColor: ACCENT_COLOR }}
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-primary-foreground transition-opacity hover:opacity-90"
         >
           {isRunning ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
           {isRunning ? 'Pause' : 'Start'}
@@ -228,8 +230,7 @@ export default function PomodoroTimer(): React.JSX.Element {
           type="button"
           aria-label="Reset timer"
           onClick={resetTimer}
-          className="inline-flex items-center gap-2 rounded-full border px-5 py-3"
-          style={{ borderColor: ACCENT_COLOR }}
+          className="inline-flex items-center gap-2 rounded-full border border-primary/60 px-5 py-3 transition-colors hover:bg-primary hover:text-primary-foreground"
         >
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
           Reset

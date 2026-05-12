@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 import type { CanvasAssignment } from '@/types'
-import { ACCENT_COLOR } from '@/lib/constants'
 
 type FetchState = 'loading' | 'no_token' | 'invalid_token' | 'error' | 'ok'
 
@@ -59,38 +58,36 @@ export default function CanvasTodoList(): React.JSX.Element {
   }, [])
 
   return (
-    <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
+    <section className="rounded-3xl border border-primary p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Canvas</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Canvas</p>
           <h2 className="mt-2 text-2xl font-semibold">Upcoming assignments</h2>
         </div>
         {state === 'ok' && (
-          <span className="text-sm text-black/60 dark:text-white/60">
+          <span className="text-sm text-muted-foreground">
             {assignments.length} {assignments.length === 1 ? 'item' : 'items'}
           </span>
         )}
       </div>
 
-      {/* States */}
       {state === 'loading' && (
         <div className="mt-6 space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-2xl" style={{ backgroundColor: `${ACCENT_COLOR}18` }} />
+            <div key={i} className="h-16 animate-pulse rounded-2xl bg-primary/10" />
           ))}
         </div>
       )}
 
       {state === 'no_token' && (
-        <div className="mt-6 rounded-2xl border p-4" style={{ borderColor: `${ACCENT_COLOR}44` }}>
+        <div className="mt-6 rounded-2xl border border-primary/25 p-4">
           <p className="text-sm font-medium">Canvas not connected</p>
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
+          <p className="mt-1 text-sm text-muted-foreground">
             Add your Canvas domain and personal access token to see your upcoming assignments.
           </p>
           <Link
             href="/profile"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium text-white"
-            style={{ backgroundColor: ACCENT_COLOR }}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
           >
             Connect Canvas
             <ExternalLink className="h-3 w-3" aria-hidden="true" />
@@ -99,15 +96,14 @@ export default function CanvasTodoList(): React.JSX.Element {
       )}
 
       {state === 'invalid_token' && (
-        <div className="mt-6 rounded-2xl border p-4" style={{ borderColor: `${ACCENT_COLOR}44` }}>
+        <div className="mt-6 rounded-2xl border border-primary/25 p-4">
           <p className="text-sm font-medium">Canvas token is invalid or expired</p>
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
+          <p className="mt-1 text-sm text-muted-foreground">
             Generate a new personal access token in Canvas and update it in your profile.
           </p>
           <Link
             href="/profile"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium text-white"
-            style={{ backgroundColor: ACCENT_COLOR }}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
           >
             Update token
             <ExternalLink className="h-3 w-3" aria-hidden="true" />
@@ -116,13 +112,13 @@ export default function CanvasTodoList(): React.JSX.Element {
       )}
 
       {state === 'error' && (
-        <p className="mt-6 text-sm text-red-500">
+        <p className="mt-6 text-sm text-destructive">
           Failed to load Canvas assignments. Check your Canvas domain in profile settings.
         </p>
       )}
 
       {state === 'ok' && assignments.length === 0 && (
-        <p className="mt-6 text-sm text-black/60 dark:text-white/60">
+        <p className="mt-6 text-sm text-muted-foreground">
           No upcoming assignments — you&apos;re all caught up!
         </p>
       )}
@@ -132,20 +128,19 @@ export default function CanvasTodoList(): React.JSX.Element {
           {assignments.map((assignment) => (
             <article
               key={assignment.id}
-              className="rounded-2xl border p-4 transition-colors"
-              style={{ borderColor: `${ACCENT_COLOR}33` }}
+              className="rounded-2xl border border-primary/20 p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{assignment.title}</p>
-                  <p className="mt-0.5 truncate text-xs text-black/60 dark:text-white/50">{assignment.courseName}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{assignment.courseName}</p>
                 </div>
                 <span
-                  className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium"
-                  style={{
-                    backgroundColor: isOverdue(assignment.dueAt) ? '#ef444420' : `${ACCENT_COLOR}22`,
-                    color: isOverdue(assignment.dueAt) ? '#ef4444' : ACCENT_COLOR,
-                  }}
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                    isOverdue(assignment.dueAt)
+                      ? 'bg-destructive/10 text-destructive'
+                      : 'bg-primary/10 text-primary'
+                  }`}
                 >
                   {formatDue(assignment.dueAt)}
                 </span>

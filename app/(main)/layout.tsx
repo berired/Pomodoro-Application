@@ -11,7 +11,7 @@ export default async function MainLayout({ children }: MainLayoutProps): Promise
   const username = (user?.user_metadata?.username as string | undefined) ?? 'Student'
 
   return (
-    <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <NavBar username={username} />
       <main>{children}</main>
     </div>

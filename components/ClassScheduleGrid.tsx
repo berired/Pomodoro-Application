@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { ACCENT_COLOR, DAYS_OF_WEEK } from '@/lib/constants'
+import { DAYS_OF_WEEK } from '@/lib/constants'
 import { useClasses } from '@/hooks/useClasses'
 import type { ClassRow, CreateClassPayload, UpdateClassPayload } from '@/types'
 import AddClassModal from '@/components/AddClassModal'
@@ -46,58 +46,69 @@ export default function ClassScheduleGrid(): React.JSX.Element {
   }
 
   return (
-    <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
+    <section className="rounded-3xl border border-primary p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Academics</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Academics</p>
           <h2 className="mt-2 text-2xl font-semibold">Class schedule</h2>
         </div>
-        <button type="button" onClick={() => setIsAddModalOpen(true)} className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white" style={{ backgroundColor: ACCENT_COLOR }}>
+        <button
+          type="button"
+          onClick={() => setIsAddModalOpen(true)}
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90"
+        >
           <Plus className="h-4 w-4" aria-hidden="true" />
           Add class
         </button>
       </div>
 
-      <div className="mt-6 rounded-2xl border" style={{ borderColor: `${ACCENT_COLOR}33` }}>
-        {isLoading ? <div className="p-6 text-sm text-black/70 dark:text-white/70">Loading class schedule…</div> : null}
-        {error ? <div className="p-6 text-sm text-red-500">{error}</div> : null}
+      <div className="mt-6 rounded-2xl border border-primary/20">
+        {isLoading ? (
+          <div className="p-6 text-sm text-muted-foreground">Loading class schedule…</div>
+        ) : null}
+        {error ? (
+          <div className="p-6 text-sm text-destructive">{error}</div>
+        ) : null}
 
         {!isLoading && !error && classes.length === 0 ? (
-          <div className="p-6 text-sm text-black/70 dark:text-white/70">No classes yet. Add one to start building your schedule.</div>
+          <div className="p-6 text-sm text-muted-foreground">
+            No classes yet. Add one to start building your schedule.
+          </div>
         ) : null}
 
         {!isLoading && !error ? (
           <>
             {/* Sticky day-header row */}
-            <div className="grid grid-cols-[48px_repeat(7,minmax(0,1fr))] border-b" style={{ borderColor: `${ACCENT_COLOR}33` }}>
-              <div className="border-r px-2 py-2 text-[10px] font-semibold uppercase tracking-widest text-black/50 dark:text-white/40" style={{ borderColor: `${ACCENT_COLOR}33` }}>
+            <div className="grid grid-cols-[48px_repeat(7,minmax(0,1fr))] border-b border-primary/15">
+              <div className="border-r border-primary/15 px-2 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Time
               </div>
               {DAYS_OF_WEEK.map((day) => (
-                <div key={day} className="border-r px-1 py-2 text-center text-[10px] font-semibold uppercase tracking-widest text-black/50 dark:text-white/40 last:border-r-0" style={{ borderColor: `${ACCENT_COLOR}33` }}>
+                <div
+                  key={day}
+                  className="border-r border-primary/15 px-1 py-2 text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground last:border-r-0"
+                >
                   {day.slice(0, 3)}
                 </div>
               ))}
             </div>
 
             {/* Scrollable time rows */}
-            <div
-              className="max-h-105 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none"
-            >
+            <div className="max-h-105 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <div className="grid grid-cols-[48px_repeat(7,minmax(0,1fr))]">
                 {gridRows.map((timeLabel) => (
                   <Fragment key={timeLabel}>
                     <div
-                      className="border-r border-b px-2 py-0 text-[10px] leading-none text-black/50 dark:text-white/40 flex items-start pt-1"
-                      style={{ borderColor: `${ACCENT_COLOR}22`, minHeight: SLOT_HEIGHT }}
+                      className="flex items-start border-b border-r border-primary/10 px-2 pt-1 text-[10px] leading-none text-muted-foreground"
+                      style={{ minHeight: SLOT_HEIGHT }}
                     >
                       {timeLabel}
                     </div>
                     {DAYS_OF_WEEK.map((day) => (
                       <div
                         key={`${day}-${timeLabel}`}
-                        className="relative border-r border-b last:border-r-0"
-                        style={{ borderColor: `${ACCENT_COLOR}14`, minHeight: SLOT_HEIGHT }}
+                        className="relative border-b border-r border-primary/8 last:border-r-0"
+                        style={{ minHeight: SLOT_HEIGHT }}
                       >
                         {classes
                           .filter((classItem) => classItem.days.includes(day) && toMinutes(classItem.start_time) === toMinutes(timeLabel))
@@ -108,8 +119,8 @@ export default function ClassScheduleGrid(): React.JSX.Element {
                                 key={classItem.id}
                                 type="button"
                                 onClick={() => setSelectedClass(classItem)}
-                                className="absolute inset-x-0.5 top-0 z-10 overflow-hidden rounded-lg px-1.5 py-1 text-left text-[10px] text-white shadow-md"
-                                style={{ height, backgroundColor: ACCENT_COLOR }}
+                                className="absolute inset-x-0.5 top-0 z-10 overflow-hidden rounded-lg bg-primary px-1.5 py-1 text-left text-[10px] text-primary-foreground shadow-sm transition-opacity hover:opacity-85"
+                                style={{ height }}
                               >
                                 <p className="truncate font-semibold leading-tight">{classItem.name}</p>
                                 <p className="truncate opacity-75">{classItem.start_time}–{classItem.end_time}</p>

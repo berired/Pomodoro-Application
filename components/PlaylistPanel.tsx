@@ -3,7 +3,6 @@
 import Image from 'next/image'
 import { Music3 } from 'lucide-react'
 import type { SpotifyPlaylist } from '@/types'
-import { ACCENT_COLOR } from '@/lib/constants'
 
 interface PlaylistPanelProps {
   playlists: SpotifyPlaylist[]
@@ -13,13 +12,13 @@ interface PlaylistPanelProps {
 
 export default function PlaylistPanel({ playlists, selectedPlaylistId, onSelectPlaylist }: PlaylistPanelProps): React.JSX.Element {
   return (
-    <section className="rounded-3xl border p-6" style={{ borderColor: ACCENT_COLOR }}>
+    <section className="rounded-3xl border border-primary p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-black/60 dark:text-white/60">Spotify</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Spotify</p>
           <h3 className="mt-2 text-2xl font-semibold">Your playlists</h3>
         </div>
-        <Music3 className="h-5 w-5" aria-hidden="true" />
+        <Music3 className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
       </div>
       <div className="mt-6 space-y-3">
         {playlists.map((playlist) => {
@@ -29,22 +28,25 @@ export default function PlaylistPanel({ playlists, selectedPlaylistId, onSelectP
               key={playlist.id}
               type="button"
               onClick={() => onSelectPlaylist(playlist)}
-              className="flex w-full items-center gap-4 rounded-2xl border p-3 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-              style={{ borderColor: isSelected ? ACCENT_COLOR : `${ACCENT_COLOR}33` }}
+              className={`flex w-full items-center gap-4 rounded-2xl border p-3 text-left transition-colors hover:bg-primary/8 ${
+                isSelected ? 'border-primary' : 'border-primary/20'
+              }`}
             >
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
                 {playlist.imageUrl ? (
                   <Image src={playlist.imageUrl} alt={playlist.name} fill className="object-cover" sizes="56px" />
                 ) : null}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{playlist.name}</p>
-                <p className="text-xs text-black/60 dark:text-white/60">{playlist.trackCount} tracks</p>
+                <p className="text-xs text-muted-foreground">{playlist.trackCount} tracks</p>
               </div>
             </button>
           )
         })}
-        {playlists.length === 0 ? <p className="text-sm text-black/70 dark:text-white/70">No playlists were found for this account.</p> : null}
+        {playlists.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No playlists were found for this account.</p>
+        ) : null}
       </div>
     </section>
   )

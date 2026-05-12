@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X } from 'lucide-react'
-import { DAYS_OF_WEEK, ACCENT_COLOR } from '@/lib/constants'
+import { DAYS_OF_WEEK } from '@/lib/constants'
 import type { CreateClassPayload } from '@/types'
 
 const addClassSchema = z.object({
@@ -67,14 +67,23 @@ export default function AddClassModal({ open, onClose, onCreate }: AddClassModal
   }
 
   return (
-    <dialog id="add-class-dialog" className="fixed inset-0 m-auto h-fit w-full max-w-2xl rounded-3xl border bg-white p-0 text-black shadow-2xl backdrop:bg-black/60 dark:bg-black dark:text-white" style={{ borderColor: ACCENT_COLOR }} onCancel={onClose}>
+    <dialog
+      id="add-class-dialog"
+      className="fixed inset-0 m-auto h-fit w-full max-w-2xl rounded-3xl border border-primary bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/60"
+      onCancel={onClose}
+    >
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-xl font-semibold">Add class</h3>
-            <p className="mt-1 text-sm text-black/70 dark:text-white/70">Schedule a recurring class block.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Schedule a recurring class block.</p>
           </div>
-          <button type="button" aria-label="Close add class dialog" onClick={onClose} className="rounded-full border p-2" style={{ borderColor: ACCENT_COLOR }}>
+          <button
+            type="button"
+            aria-label="Close add class dialog"
+            onClick={onClose}
+            className="rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
+          >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
@@ -82,27 +91,57 @@ export default function AddClassModal({ open, onClose, onCreate }: AddClassModal
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-2 md:col-span-2">
             <span className="text-sm font-medium">Class name</span>
-            <input {...form.register('name')} aria-label="Class name" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            {form.formState.errors.name && <p role="alert" className="text-sm text-red-500">{form.formState.errors.name.message}</p>}
+            <input
+              {...form.register('name')}
+              aria-label="Class name"
+              className="w-full rounded-2xl border border-primary bg-transparent px-4 py-3"
+            />
+            {form.formState.errors.name && (
+              <p role="alert" className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+            )}
           </label>
           <label className="space-y-2">
             <span className="text-sm font-medium">Start time</span>
-            <input {...form.register('start_time')} type="time" aria-label="Start time" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            {form.formState.errors.start_time && <p role="alert" className="text-sm text-red-500">{form.formState.errors.start_time.message}</p>}
+            <input
+              {...form.register('start_time')}
+              type="time"
+              aria-label="Start time"
+              className="w-full rounded-2xl border border-primary bg-transparent px-4 py-3"
+            />
+            {form.formState.errors.start_time && (
+              <p role="alert" className="text-sm text-destructive">{form.formState.errors.start_time.message}</p>
+            )}
           </label>
           <label className="space-y-2">
             <span className="text-sm font-medium">End time</span>
-            <input {...form.register('end_time')} type="time" aria-label="End time" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            {form.formState.errors.end_time && <p role="alert" className="text-sm text-red-500">{form.formState.errors.end_time.message}</p>}
+            <input
+              {...form.register('end_time')}
+              type="time"
+              aria-label="End time"
+              className="w-full rounded-2xl border border-primary bg-transparent px-4 py-3"
+            />
+            {form.formState.errors.end_time && (
+              <p role="alert" className="text-sm text-destructive">{form.formState.errors.end_time.message}</p>
+            )}
           </label>
           <label className="space-y-2">
             <span className="text-sm font-medium">Room</span>
-            <input {...form.register('room')} aria-label="Room" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-            {form.formState.errors.room && <p role="alert" className="text-sm text-red-500">{form.formState.errors.room.message}</p>}
+            <input
+              {...form.register('room')}
+              aria-label="Room"
+              className="w-full rounded-2xl border border-primary bg-transparent px-4 py-3"
+            />
+            {form.formState.errors.room && (
+              <p role="alert" className="text-sm text-destructive">{form.formState.errors.room.message}</p>
+            )}
           </label>
           <label className="space-y-2">
             <span className="text-sm font-medium">Professor</span>
-            <input {...form.register('professor')} aria-label="Professor" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
+            <input
+              {...form.register('professor')}
+              aria-label="Professor"
+              className="w-full rounded-2xl border border-primary bg-transparent px-4 py-3"
+            />
           </label>
         </div>
 
@@ -113,7 +152,12 @@ export default function AddClassModal({ open, onClose, onCreate }: AddClassModal
               const selectedDays = form.watch('days') ?? []
               const isSelected = selectedDays.includes(day)
               return (
-                <label key={day} className="flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-sm" style={{ borderColor: isSelected ? ACCENT_COLOR : `${ACCENT_COLOR}33` }}>
+                <label
+                  key={day}
+                  className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition-colors ${
+                    isSelected ? 'border-primary bg-primary/8' : 'border-primary/20 hover:border-primary/50'
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -123,20 +167,31 @@ export default function AddClassModal({ open, onClose, onCreate }: AddClassModal
                       form.setValue('days', nextDays, { shouldValidate: true })
                     }}
                     aria-label={day}
+                    className="accent-primary"
                   />
                   {day.slice(0, 3)}
                 </label>
               )
             })}
           </div>
-          {form.formState.errors.days && <p role="alert" className="text-sm text-red-500">{form.formState.errors.days.message}</p>}
+          {form.formState.errors.days && (
+            <p role="alert" className="text-sm text-destructive">{form.formState.errors.days.message}</p>
+          )}
         </div>
 
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-full border px-4 py-2 text-sm" style={{ borderColor: ACCENT_COLOR }}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-primary/60 px-4 py-2 text-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+          >
             Cancel
           </button>
-          <button type="submit" disabled={form.formState.isSubmitting} className="rounded-full px-4 py-2 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
+          <button
+            type="submit"
+            disabled={form.formState.isSubmitting}
+            className="rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
             Save class
           </button>
         </div>

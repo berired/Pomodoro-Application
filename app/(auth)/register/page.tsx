@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
-import { ACCENT_COLOR, PASSWORD_REGEX } from '@/lib/constants'
+import { PASSWORD_REGEX } from '@/lib/constants'
 
 const registerSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
@@ -32,6 +32,8 @@ function getPasswordStrength(passwordValue: string): number {
   if (/[^A-Za-z0-9]/.test(passwordValue)) score += 1
   return score
 }
+
+const inputClass = 'w-full rounded-2xl border border-border bg-transparent px-4 py-3 transition-colors focus:border-primary'
 
 export default function RegisterPage(): React.JSX.Element {
   const router = useRouter()
@@ -196,119 +198,208 @@ export default function RegisterPage(): React.JSX.Element {
 
   const stepLabels = ['Profile', 'Account', 'Password']
 
+  const strengthLabels = ['', 'Weak', 'Fair', 'Strong', 'Very strong']
+  const strengthColors = ['', 'bg-destructive', 'bg-yellow-500', 'bg-green-500', 'bg-green-600']
+
   return (
     <section className="mx-auto flex min-h-screen w-full max-w-2xl items-center px-6 py-16">
-      <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6 rounded-3xl border p-8 shadow-[0_24px_80px_rgba(0,0,0,0.08)]" style={{ borderColor: ACCENT_COLOR }}>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="w-full space-y-6 rounded-3xl border border-primary p-8 shadow-[0_24px_80px_rgba(0,0,0,0.07)]"
+      >
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold">Sign Up</h1>
-          <p className="text-sm text-black/70 dark:text-white/70">Create your student account in three quick steps.</p>
+          <h1 className="text-3xl font-semibold">Create account</h1>
+          <p className="text-sm text-muted-foreground">Three quick steps to get started.</p>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-3">
+        {/* Step indicators */}
+        <div className="flex items-center gap-2">
           {stepLabels.map((label, index) => {
             const stepNumber = index + 1
             const isActive = stepNumber === step
             const isComplete = stepNumber < step
             return (
-              <div key={label} className="flex items-center gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: isActive ? ACCENT_COLOR : `${ACCENT_COLOR}33` }}>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: isActive || isComplete ? ACCENT_COLOR : `${ACCENT_COLOR}66` }}>
-                  {isComplete ? <Check className="h-4 w-4" aria-hidden="true" /> : stepNumber}
+              <div key={label} className="flex flex-1 items-center gap-2">
+                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                  isActive || isComplete
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  {isComplete ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : stepNumber}
                 </div>
-                <div>
-                  <p className="text-sm font-medium">Step {stepNumber}</p>
-                  <p className="text-xs text-black/60 dark:text-white/60">{label}</p>
-                </div>
+                <span className={`text-sm ${isActive ? 'font-medium' : 'text-muted-foreground'}`}>
+                  {label}
+                </span>
+                {index < stepLabels.length - 1 && (
+                  <div className={`ml-auto h-px flex-1 transition-colors ${isComplete ? 'bg-primary/40' : 'bg-border'}`} />
+                )}
               </div>
             )
           })}
         </div>
 
-        {step === 1 ? (
+        {step === 1 && (
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block space-y-2 md:col-span-2">
               <span className="text-sm font-medium">Full name</span>
-              <input {...register('fullName')} aria-label="Full name" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {errors.fullName && <p role="alert" className="text-sm text-red-500">{errors.fullName.message}</p>}
+              <input
+                {...register('fullName')}
+                aria-label="Full name"
+                autoComplete="name"
+                className={inputClass}
+              />
+              {errors.fullName && (
+                <p role="alert" className="text-sm text-destructive">{errors.fullName.message}</p>
+              )}
             </label>
             <label className="block space-y-2 md:col-span-2">
               <span className="text-sm font-medium">School</span>
-              <input {...register('school')} aria-label="School" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {errors.school && <p role="alert" className="text-sm text-red-500">{errors.school.message}</p>}
+              <input
+                {...register('school')}
+                aria-label="School"
+                className={inputClass}
+              />
+              {errors.school && (
+                <p role="alert" className="text-sm text-destructive">{errors.school.message}</p>
+              )}
             </label>
           </div>
-        ) : null}
+        )}
 
-        {step === 2 ? (
+        {step === 2 && (
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block space-y-2 md:col-span-2">
               <span className="text-sm font-medium">Email</span>
-              <input {...register('email')} aria-label="Email" type="email" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {errors.email && <p role="alert" className="text-sm text-red-500">{errors.email.message}</p>}
-              {emailMessage ? <p className={`text-sm ${emailState === 'available' ? 'text-green-600' : 'text-black/60 dark:text-white/60'}`}>{emailMessage}</p> : null}
+              <input
+                {...register('email')}
+                aria-label="Email"
+                type="email"
+                autoComplete="email"
+                className={inputClass}
+              />
+              {errors.email && (
+                <p role="alert" className="text-sm text-destructive">{errors.email.message}</p>
+              )}
+              {emailMessage && (
+                <p className={`text-sm ${emailState === 'available' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                  {emailMessage}
+                </p>
+              )}
             </label>
             <label className="block space-y-2 md:col-span-2">
               <span className="text-sm font-medium">Username</span>
-              <input {...register('username')} aria-label="Username" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-              {errors.username && <p role="alert" className="text-sm text-red-500">{errors.username.message}</p>}
-              {usernameMessage ? <p className={`text-sm ${usernameState === 'available' ? 'text-green-600' : 'text-black/60 dark:text-white/60'}`}>{usernameMessage}</p> : null}
+              <input
+                {...register('username')}
+                aria-label="Username"
+                autoComplete="username"
+                className={inputClass}
+              />
+              {errors.username && (
+                <p role="alert" className="text-sm text-destructive">{errors.username.message}</p>
+              )}
+              {usernameMessage && (
+                <p className={`text-sm ${usernameState === 'available' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                  {usernameMessage}
+                </p>
+              )}
             </label>
           </div>
-        ) : null}
+        )}
 
-        {step === 3 ? (
+        {step === 3 && (
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block space-y-2">
                 <span className="text-sm font-medium">Password</span>
-                <input {...register('password')} aria-label="Password" type="password" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-                {errors.password && <p role="alert" className="text-sm text-red-500">{errors.password.message}</p>}
+                <input
+                  {...register('password')}
+                  aria-label="Password"
+                  type="password"
+                  autoComplete="new-password"
+                  className={inputClass}
+                />
+                {errors.password && (
+                  <p role="alert" className="text-sm text-destructive">{errors.password.message}</p>
+                )}
               </label>
               <label className="block space-y-2">
                 <span className="text-sm font-medium">Confirm password</span>
-                <input {...register('confirmPassword')} aria-label="Confirm password" type="password" className="w-full rounded-2xl border bg-transparent px-4 py-3 outline-none" style={{ borderColor: ACCENT_COLOR }} />
-                {errors.confirmPassword && <p role="alert" className="text-sm text-red-500">{errors.confirmPassword.message}</p>}
+                <input
+                  {...register('confirmPassword')}
+                  aria-label="Confirm password"
+                  type="password"
+                  autoComplete="new-password"
+                  className={inputClass}
+                />
+                {errors.confirmPassword && (
+                  <p role="alert" className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+                )}
               </label>
             </div>
 
-            <div className="rounded-2xl border p-4" style={{ borderColor: `${ACCENT_COLOR}33` }}>
+            <div className="rounded-2xl border border-primary/20 p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-medium">Password strength</p>
-                <p className="text-xs text-black/60 dark:text-white/60">{passwordStrength <= 1 ? 'Weak' : passwordStrength === 2 ? 'Fair' : passwordStrength === 3 ? 'Strong' : 'Very strong'}</p>
+                {passwordStrength > 0 && (
+                  <p className="text-xs text-muted-foreground">{strengthLabels[passwordStrength]}</p>
+                )}
               </div>
-              <div className="mt-3 h-2 rounded-full bg-black/10 dark:bg-white/10">
-                <div className="h-2 rounded-full transition-all" style={{ width: `${(passwordStrength / 4) * 100}%`, backgroundColor: ACCENT_COLOR }} />
+              <div className="mt-3 h-1.5 rounded-full bg-muted">
+                <div
+                  className={`h-1.5 rounded-full transition-all ${strengthColors[passwordStrength] ?? 'bg-primary'}`}
+                  style={{ width: `${(passwordStrength / 4) * 100}%` }}
+                />
               </div>
-              <ul className="mt-3 space-y-1 text-xs text-black/60 dark:text-white/60">
-                <li>8-16 characters</li>
+              <ul className="mt-3 space-y-0.5 text-xs text-muted-foreground">
+                <li>8–16 characters</li>
                 <li>At least one uppercase letter</li>
                 <li>At least one number</li>
               </ul>
             </div>
           </div>
-        ) : null}
+        )}
 
-        {serverError && <p role="alert" className="text-sm text-red-500">{serverError}</p>}
+        {serverError && (
+          <p role="alert" className="text-sm text-destructive">{serverError}</p>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <button type="button" onClick={goBack} disabled={step === 1 || isSubmitting} className="inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm disabled:opacity-50" style={{ borderColor: ACCENT_COLOR }}>
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={step === 1 || isSubmitting}
+            className="inline-flex items-center gap-2 rounded-full border border-primary/60 px-5 py-3 text-sm transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-40"
+          >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             Back
           </button>
 
           {step < 3 ? (
-            <button type="button" onClick={() => void goNext()} disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
+            <button
+              type="button"
+              onClick={() => void goNext()}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
               Next
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           ) : (
-            <button type="submit" disabled={isSubmitting || emailState !== 'available' || usernameState !== 'available'} className="rounded-full px-5 py-3 text-sm text-white disabled:opacity-60" style={{ backgroundColor: ACCENT_COLOR }}>
-              {isSubmitting ? 'Creating account...' : 'Create Account'}
+            <button
+              type="submit"
+              disabled={isSubmitting || emailState !== 'available' || usernameState !== 'available'}
+              className="rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {isSubmitting ? 'Creating account…' : 'Create account'}
             </button>
           )}
         </div>
 
-        <p className="text-sm text-black/70 dark:text-white/70">
-          Already have an account? <Link href="/login" className="underline" style={{ color: ACCENT_COLOR }}>Log in</Link>
+        <p className="text-center text-sm text-muted-foreground">
+          Already have an account?{' '}
+          <Link href="/login" className="font-medium text-primary underline-offset-2 hover:underline">
+            Log in
+          </Link>
         </p>
       </form>
     </section>
