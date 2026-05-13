@@ -1,21 +1,24 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { VT323, Share_Tech_Mono } from 'next/font/google'
 import './globals.css'
 import ThemeProvider from '@/components/ThemeProvider'
+import { TimerProvider } from '@/contexts/TimerContext'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const vt323 = VT323({
+  variable: '--font-display',
   subsets: ['latin'],
+  weight: '400',
 })
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const shareTechMono = Share_Tech_Mono({
+  variable: '--font-mono-terminal',
   subsets: ['latin'],
+  weight: '400',
 })
 
 export const metadata: Metadata = {
-  title: 'Pomodoro App',
-  description: 'A productivity app for students',
+  title: 'STUDYTERM v2.0',
+  description: 'Student productivity terminal',
 }
 
 export default function RootLayout({
@@ -41,8 +44,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider>{children}</ThemeProvider>
+      <body className={`${vt323.variable} ${shareTechMono.variable}`}>
+        <ThemeProvider>
+          <TimerProvider>{children}</TimerProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

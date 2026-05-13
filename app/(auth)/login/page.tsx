@@ -15,8 +15,6 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>
 
-const inputClass = 'w-full rounded-2xl border border-border bg-transparent px-4 py-3 transition-colors focus:border-primary'
-
 export default function LoginPage(): React.JSX.Element {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
@@ -32,22 +30,12 @@ export default function LoginPage(): React.JSX.Element {
     if (!email.includes('@')) {
       const res = await fetch(`/api/auth/lookup-email?username=${encodeURIComponent(values.identifier)}`)
       const data = await res.json() as { email: string | null }
-      if (!data.email) {
-        setServerError('Invalid credentials')
-        return
-      }
+      if (!data.email) { setServerError('Invalid credentials'); return }
       email = data.email
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: values.password,
-    })
-
-    if (error) {
-      setServerError('Invalid credentials')
-      return
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password: values.password })
+    if (error) { setServerError('Invalid credentials'); return }
 
     void fetch('/api/auth/record-login', { method: 'POST' })
     router.push('/')
@@ -55,62 +43,106 @@ export default function LoginPage(): React.JSX.Element {
   }
 
   return (
-    <section className="mx-auto flex min-h-screen w-full max-w-md items-center px-6 py-16">
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="w-full space-y-6 rounded-3xl border border-primary p-8 shadow-[0_24px_80px_rgba(0,0,0,0.07)]"
-      >
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold">Log in</h1>
-          <p className="text-sm text-muted-foreground">Access your study dashboard.</p>
+    <div className="mx-auto flex min-h-screen w-full max-w-lg items-center px-6 py-16">
+      <div className="w-full term-window" style={{ animation: 'boot-on 0.5s ease-out both' }}>
+
+        {/* Title bar */}
+        <div className="term-titlebar">
+          <div className="term-titlebar-dots">
+            <span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" />
+          </div>
+          <span>LOGIN.EXE</span>
+          <span className="ml-auto">STUDYTERM v2.0</span>
         </div>
 
-        <label className="block space-y-2">
-          <span className="text-sm font-medium">Username or email</span>
-          <input
-            {...register('identifier')}
-            aria-label="Username or email"
-            autoComplete="username"
-            className={inputClass}
-          />
-          {errors.identifier && (
-            <p role="alert" className="text-sm text-destructive">{errors.identifier.message}</p>
-          )}
-        </label>
+        <div className="p-6">
+          {/* Boot sequence header */}
+          <div className="mb-6 border-b border-border pb-4">
+            <p className="text-xs text-muted-foreground">
+              <span className="text-primary" style={{ textShadow: 'var(--phosphor-glow)' }}>C:\STUDY&gt; </span>
+              authenticate --user
+            </p>
+            <h1
+              className="mt-2 text-3xl"
+              style={{ textShadow: 'var(--phosphor-glow-strong)' }}
+            >
+              USER LOGIN
+            </h1>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Enter credentials to access your study dashboard.
+              <span
+                className="ml-1 inline-block text-primary"
+                style={{ animation: 'blink 1s step-end infinite', textShadow: 'var(--phosphor-glow)' }}
+                aria-hidden="true"
+              >
+                █
+              </span>
+            </p>
+          </div>
 
-        <label className="block space-y-2">
-          <span className="text-sm font-medium">Password</span>
-          <input
-            {...register('password')}
-            type="password"
-            aria-label="Password"
-            autoComplete="current-password"
-            className={inputClass}
-          />
-          {errors.password && (
-            <p role="alert" className="text-sm text-destructive">{errors.password.message}</p>
-          )}
-        </label>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <label className="term-label block">
+              <span className="term-label-text">USERNAME OR EMAIL</span>
+              <input
+                {...register('identifier')}
+                aria-label="Username or email"
+                autoComplete="username"
+                placeholder="user@example.com"
+                className="term-input mt-1"
+              />
+              {errors.identifier && (
+                <p role="alert" className="mt-1 text-xs text-destructive">
+                  [ERR] {errors.identifier.message}
+                </p>
+              )}
+            </label>
 
-        {serverError && (
-          <p role="alert" className="text-sm text-destructive">{serverError}</p>
-        )}
+            <label className="term-label block">
+              <span className="term-label-text">PASSWORD</span>
+              <input
+                {...register('password')}
+                type="password"
+                aria-label="Password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="term-input mt-1"
+              />
+              {errors.password && (
+                <p role="alert" className="mt-1 text-xs text-destructive">
+                  [ERR] {errors.password.message}
+                </p>
+              )}
+            </label>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-full bg-primary px-6 py-3 font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-        >
-          {isSubmitting ? 'Signing in…' : 'Log in'}
-        </button>
+            {serverError && (
+              <p role="alert" className="text-xs text-destructive">
+                [AUTH_FAIL] {serverError}
+              </p>
+            )}
 
-        <p className="text-center text-sm text-muted-foreground">
-          No account?{' '}
-          <Link href="/register" className="font-medium text-primary underline-offset-2 hover:underline">
-            Sign up
-          </Link>
-        </p>
-      </form>
-    </section>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="term-btn w-full justify-center py-3 text-sm"
+            >
+              {isSubmitting ? '[ AUTHENTICATING... ]' : '[ EXECUTE LOGIN ]'}
+            </button>
+          </form>
+
+          <div className="mt-5 border-t border-border pt-4">
+            <p className="text-xs text-muted-foreground">
+              NO ACCOUNT?{' '}
+              <Link
+                href="/register"
+                className="text-primary underline-offset-2 hover:underline"
+                style={{ textShadow: 'var(--phosphor-glow)' }}
+              >
+                RUN REGISTER.EXE
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

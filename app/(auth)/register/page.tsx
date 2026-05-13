@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { PASSWORD_REGEX } from '@/lib/constants'
 
 const registerSchema = z.object({
@@ -33,7 +32,9 @@ function getPasswordStrength(passwordValue: string): number {
   return score
 }
 
-const inputClass = 'w-full rounded-2xl border border-border bg-transparent px-4 py-3 transition-colors focus:border-primary'
+const STRENGTH_LABELS = ['', 'WEAK', 'FAIR', 'STRONG', 'SECURE']
+const STRENGTH_BAR = ['', '██░░░░░░', '████░░░░', '██████░░', '████████']
+const STRENGTH_COLORS = ['', 'text-destructive', 'text-yellow-400', 'text-primary', 'text-primary']
 
 export default function RegisterPage(): React.JSX.Element {
   const router = useRouter()
@@ -43,6 +44,7 @@ export default function RegisterPage(): React.JSX.Element {
   const [usernameState, setUsernameState] = useState<AvailabilityState>('idle')
   const [emailMessage, setEmailMessage] = useState<string | null>(null)
   const [usernameMessage, setUsernameMessage] = useState<string | null>(null)
+
   const {
     register,
     handleSubmit,
@@ -52,14 +54,7 @@ export default function RegisterPage(): React.JSX.Element {
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
     mode: 'onChange',
-    defaultValues: {
-      fullName: '',
-      school: '',
-      email: '',
-      username: '',
-      password: '',
-      confirmPassword: '',
-    },
+    defaultValues: { fullName: '', school: '', email: '', username: '', password: '', confirmPassword: '' },
   })
 
   const emailValue = watch('email')
@@ -69,103 +64,54 @@ export default function RegisterPage(): React.JSX.Element {
 
   useEffect(() => {
     if (step !== 2) return
-
     const emailValueTrimmed = emailValue?.trim() ?? ''
-    if (!emailValueTrimmed) {
-      setEmailState('idle')
-      setEmailMessage(null)
-      return
-    }
-
+    if (!emailValueTrimmed) { setEmailState('idle'); setEmailMessage(null); return }
     const timer = window.setTimeout(() => {
       const validateEmail = async (): Promise<void> => {
-        const localEmailCheck = z.string().email().safeParse(emailValueTrimmed)
-        if (!localEmailCheck.success) {
-          setEmailState('invalid')
-          setEmailMessage('Enter a valid email address')
-          return
-        }
-
+        const localCheck = z.string().email().safeParse(emailValueTrimmed)
+        if (!localCheck.success) { setEmailState('invalid'); setEmailMessage('Enter a valid email address'); return }
         setEmailState('checking')
         const response = await fetch(`/api/auth/check-email?email=${encodeURIComponent(emailValueTrimmed)}`)
-        if (!response.ok) {
-          setEmailState('invalid')
-          setEmailMessage('Unable to verify email right now')
-          return
-        }
-
+        if (!response.ok) { setEmailState('invalid'); setEmailMessage('Unable to verify email right now'); return }
         const payload = await response.json() as { exists?: boolean }
-        if (payload.exists) {
-          setEmailState('taken')
-          setEmailMessage('Email is already in use')
-          return
-        }
-
-        setEmailState('available')
-        setEmailMessage('Email is available')
+        if (payload.exists) { setEmailState('taken'); setEmailMessage('Email is already in use'); return }
+        setEmailState('available'); setEmailMessage('Email is available')
       }
-
       void validateEmail()
     }, 400)
-
     return () => window.clearTimeout(timer)
   }, [emailValue, step])
 
   useEffect(() => {
     if (step !== 2) return
-
     const usernameValueTrimmed = usernameValue?.trim() ?? ''
-    if (!usernameValueTrimmed) {
-      setUsernameState('idle')
-      setUsernameMessage(null)
-      return
-    }
-
+    if (!usernameValueTrimmed) { setUsernameState('idle'); setUsernameMessage(null); return }
     const timer = window.setTimeout(() => {
       const validateUsername = async (): Promise<void> => {
-        const localUsernameCheck = z.string().min(3).regex(/^[a-zA-Z0-9_]+$/).safeParse(usernameValueTrimmed)
-        if (!localUsernameCheck.success) {
-          setUsernameState('invalid')
-          setUsernameMessage('Use at least 3 characters: letters, numbers, underscores')
-          return
-        }
-
+        const localCheck = z.string().min(3).regex(/^[a-zA-Z0-9_]+$/).safeParse(usernameValueTrimmed)
+        if (!localCheck.success) { setUsernameState('invalid'); setUsernameMessage('Use at least 3 chars: letters, numbers, underscores'); return }
         setUsernameState('checking')
         const response = await fetch(`/api/auth/check-username?username=${encodeURIComponent(usernameValueTrimmed)}`)
-        if (!response.ok) {
-          setUsernameState('invalid')
-          setUsernameMessage('Unable to verify username right now')
-          return
-        }
-
+        if (!response.ok) { setUsernameState('invalid'); setUsernameMessage('Unable to verify username right now'); return }
         const payload = await response.json() as { exists?: boolean }
-        if (payload.exists) {
-          setUsernameState('taken')
-          setUsernameMessage('Username is already in use')
-          return
-        }
-
-        setUsernameState('available')
-        setUsernameMessage('Username is available')
+        if (payload.exists) { setUsernameState('taken'); setUsernameMessage('Username is already in use'); return }
+        setUsernameState('available'); setUsernameMessage('Username is available')
       }
-
       void validateUsername()
     }, 400)
-
     return () => window.clearTimeout(timer)
   }, [step, usernameValue])
 
   async function goNext(): Promise<void> {
     setServerError(null)
     if (step === 1) {
-      const stepIsValid = await trigger(['fullName', 'school'])
-      if (stepIsValid) setStep(2)
+      const valid = await trigger(['fullName', 'school'])
+      if (valid) setStep(2)
       return
     }
-
     if (step === 2) {
-      const stepIsValid = await trigger(['email', 'username'])
-      if (!stepIsValid) return
+      const valid = await trigger(['email', 'username'])
+      if (!valid) return
       if (emailState !== 'available' || usernameState !== 'available') {
         setServerError('Please use available email and username values before continuing.')
         return
@@ -176,7 +122,7 @@ export default function RegisterPage(): React.JSX.Element {
 
   function goBack(): void {
     setServerError(null)
-    setStep((currentStep) => Math.max(1, currentStep - 1))
+    setStep((s) => Math.max(1, s - 1))
   }
 
   async function onSubmit(values: RegisterValues): Promise<void> {
@@ -186,222 +132,252 @@ export default function RegisterPage(): React.JSX.Element {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values),
     })
-
     if (!response.ok) {
       const body = await response.json() as { error?: string }
       setServerError(body.error ?? 'Registration failed')
       return
     }
-
     router.push('/login')
   }
 
-  const stepLabels = ['Profile', 'Account', 'Password']
+  const stepLabels = ['PROFILE', 'ACCOUNT', 'PASSWORD']
 
-  const strengthLabels = ['', 'Weak', 'Fair', 'Strong', 'Very strong']
-  const strengthColors = ['', 'bg-destructive', 'bg-yellow-500', 'bg-green-500', 'bg-green-600']
+  function getFieldStatus(state: AvailabilityState, message: string | null) {
+    if (!message) return null
+    const prefix = state === 'available' ? '[OK]' : state === 'checking' ? '[...]' : '[ERR]'
+    const colorClass = state === 'available' ? 'text-primary' : state === 'checking' ? 'text-muted-foreground' : 'text-destructive'
+    return <p className={`mt-1 text-xs ${colorClass}`}>{prefix} {message}</p>
+  }
 
   return (
-    <section className="mx-auto flex min-h-screen w-full max-w-2xl items-center px-6 py-16">
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="w-full space-y-6 rounded-3xl border border-primary p-8 shadow-[0_24px_80px_rgba(0,0,0,0.07)]"
-      >
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold">Create account</h1>
-          <p className="text-sm text-muted-foreground">Three quick steps to get started.</p>
+    <div className="mx-auto flex min-h-screen w-full max-w-2xl items-center px-6 py-16">
+      <div className="w-full term-window" style={{ animation: 'boot-on 0.5s ease-out both' }}>
+
+        {/* Title bar */}
+        <div className="term-titlebar">
+          <div className="term-titlebar-dots">
+            <span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" />
+          </div>
+          <span>REGISTER.EXE</span>
+          <span className="ml-auto">STEP {step}/3</span>
         </div>
 
-        {/* Step indicators */}
-        <div className="flex items-center gap-2">
-          {stepLabels.map((label, index) => {
-            const stepNumber = index + 1
-            const isActive = stepNumber === step
-            const isComplete = stepNumber < step
-            return (
-              <div key={label} className="flex flex-1 items-center gap-2">
-                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-                  isActive || isComplete
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  {isComplete ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : stepNumber}
+        <div className="p-6">
+          {/* Header */}
+          <div className="mb-6 border-b border-border pb-4">
+            <p className="text-xs text-muted-foreground">
+              <span className="text-primary" style={{ textShadow: 'var(--phosphor-glow)' }}>C:\STUDY&gt; </span>
+              register --new-user
+            </p>
+            <h1 className="mt-2 text-3xl" style={{ textShadow: 'var(--phosphor-glow-strong)' }}>
+              CREATE ACCOUNT
+            </h1>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Three-step setup process. All fields required.
+            </p>
+          </div>
+
+          {/* Step indicators */}
+          <div className="mb-6 flex items-center gap-1 text-xs">
+            {stepLabels.map((label, idx) => {
+              const stepNum = idx + 1
+              const isActive = stepNum === step
+              const isDone = stepNum < step
+              return (
+                <div key={label} className="flex items-center gap-1">
+                  <span className={`px-2 py-0.5 text-[10px] tracking-wider ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : isDone
+                        ? 'border border-primary text-primary'
+                        : 'border border-border text-muted-foreground'
+                  }`}>
+                    {isDone ? '✓' : stepNum} {label}
+                  </span>
+                  {idx < stepLabels.length - 1 && (
+                    <span className={`text-[10px] ${isDone ? 'text-primary' : 'text-border'}`}>──</span>
+                  )}
                 </div>
-                <span className={`text-sm ${isActive ? 'font-medium' : 'text-muted-foreground'}`}>
-                  {label}
-                </span>
-                {index < stepLabels.length - 1 && (
-                  <div className={`ml-auto h-px flex-1 transition-colors ${isComplete ? 'bg-primary/40' : 'bg-border'}`} />
-                )}
+              )
+            })}
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {step === 1 && (
+              <div className="space-y-4">
+                <label className="term-label block">
+                  <span className="term-label-text">FULL NAME</span>
+                  <input
+                    {...register('fullName')}
+                    aria-label="Full name"
+                    autoComplete="name"
+                    placeholder="Enter your full name"
+                    className="term-input mt-1"
+                  />
+                  {errors.fullName && (
+                    <p role="alert" className="mt-1 text-xs text-destructive">[ERR] {errors.fullName.message}</p>
+                  )}
+                </label>
+                <label className="term-label block">
+                  <span className="term-label-text">SCHOOL / INSTITUTION</span>
+                  <input
+                    {...register('school')}
+                    aria-label="School"
+                    placeholder="Enter your school name"
+                    className="term-input mt-1"
+                  />
+                  {errors.school && (
+                    <p role="alert" className="mt-1 text-xs text-destructive">[ERR] {errors.school.message}</p>
+                  )}
+                </label>
               </div>
-            )
-          })}
-        </div>
+            )}
 
-        {step === 1 && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block space-y-2 md:col-span-2">
-              <span className="text-sm font-medium">Full name</span>
-              <input
-                {...register('fullName')}
-                aria-label="Full name"
-                autoComplete="name"
-                className={inputClass}
-              />
-              {errors.fullName && (
-                <p role="alert" className="text-sm text-destructive">{errors.fullName.message}</p>
-              )}
-            </label>
-            <label className="block space-y-2 md:col-span-2">
-              <span className="text-sm font-medium">School</span>
-              <input
-                {...register('school')}
-                aria-label="School"
-                className={inputClass}
-              />
-              {errors.school && (
-                <p role="alert" className="text-sm text-destructive">{errors.school.message}</p>
-              )}
-            </label>
-          </div>
-        )}
+            {step === 2 && (
+              <div className="space-y-4">
+                <label className="term-label block">
+                  <span className="term-label-text">EMAIL ADDRESS</span>
+                  <input
+                    {...register('email')}
+                    aria-label="Email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    className="term-input mt-1"
+                  />
+                  {errors.email && (
+                    <p role="alert" className="mt-1 text-xs text-destructive">[ERR] {errors.email.message}</p>
+                  )}
+                  {getFieldStatus(emailState, emailMessage)}
+                </label>
+                <label className="term-label block">
+                  <span className="term-label-text">USERNAME</span>
+                  <input
+                    {...register('username')}
+                    aria-label="Username"
+                    autoComplete="username"
+                    placeholder="your_username"
+                    className="term-input mt-1"
+                  />
+                  {errors.username && (
+                    <p role="alert" className="mt-1 text-xs text-destructive">[ERR] {errors.username.message}</p>
+                  )}
+                  {getFieldStatus(usernameState, usernameMessage)}
+                </label>
+              </div>
+            )}
 
-        {step === 2 && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block space-y-2 md:col-span-2">
-              <span className="text-sm font-medium">Email</span>
-              <input
-                {...register('email')}
-                aria-label="Email"
-                type="email"
-                autoComplete="email"
-                className={inputClass}
-              />
-              {errors.email && (
-                <p role="alert" className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-              {emailMessage && (
-                <p className={`text-sm ${emailState === 'available' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
-                  {emailMessage}
-                </p>
-              )}
-            </label>
-            <label className="block space-y-2 md:col-span-2">
-              <span className="text-sm font-medium">Username</span>
-              <input
-                {...register('username')}
-                aria-label="Username"
-                autoComplete="username"
-                className={inputClass}
-              />
-              {errors.username && (
-                <p role="alert" className="text-sm text-destructive">{errors.username.message}</p>
-              )}
-              {usernameMessage && (
-                <p className={`text-sm ${usernameState === 'available' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
-                  {usernameMessage}
-                </p>
-              )}
-            </label>
-          </div>
-        )}
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="term-label block">
+                    <span className="term-label-text">PASSWORD</span>
+                    <input
+                      {...register('password')}
+                      aria-label="Password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Min 8 characters"
+                      className="term-input mt-1"
+                    />
+                    {errors.password && (
+                      <p role="alert" className="mt-1 text-xs text-destructive">[ERR] {errors.password.message}</p>
+                    )}
+                  </label>
+                  <label className="term-label block">
+                    <span className="term-label-text">CONFIRM PASSWORD</span>
+                    <input
+                      {...register('confirmPassword')}
+                      aria-label="Confirm password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Repeat password"
+                      className="term-input mt-1"
+                    />
+                    {errors.confirmPassword && (
+                      <p role="alert" className="mt-1 text-xs text-destructive">[ERR] {errors.confirmPassword.message}</p>
+                    )}
+                  </label>
+                </div>
 
-        {step === 3 && (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block space-y-2">
-                <span className="text-sm font-medium">Password</span>
-                <input
-                  {...register('password')}
-                  aria-label="Password"
-                  type="password"
-                  autoComplete="new-password"
-                  className={inputClass}
-                />
-                {errors.password && (
-                  <p role="alert" className="text-sm text-destructive">{errors.password.message}</p>
-                )}
-              </label>
-              <label className="block space-y-2">
-                <span className="text-sm font-medium">Confirm password</span>
-                <input
-                  {...register('confirmPassword')}
-                  aria-label="Confirm password"
-                  type="password"
-                  autoComplete="new-password"
-                  className={inputClass}
-                />
-                {errors.confirmPassword && (
-                  <p role="alert" className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-                )}
-              </label>
+                {/* Password strength meter */}
+                <div className="border border-border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                      Password strength
+                    </p>
+                    {passwordStrength > 0 && (
+                      <p className={`text-xs font-mono ${STRENGTH_COLORS[passwordStrength]}`}
+                        style={passwordStrength >= 3 ? { textShadow: 'var(--phosphor-glow)' } : {}}>
+                        {STRENGTH_LABELS[passwordStrength]}
+                      </p>
+                    )}
+                  </div>
+                  <p
+                    className={`mt-2 text-sm font-mono tracking-tight ${STRENGTH_COLORS[passwordStrength] ?? 'text-border'}`}
+                    style={passwordStrength >= 3 ? { textShadow: 'var(--phosphor-glow)' } : {}}
+                    aria-hidden="true"
+                  >
+                    [{STRENGTH_BAR[passwordStrength] ?? '░░░░░░░░'}]
+                  </p>
+                  <ul className="mt-3 space-y-0.5 text-[10px] text-muted-foreground">
+                    <li>· 8–16 characters</li>
+                    <li>· At least one uppercase letter</li>
+                    <li>· At least one number</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {serverError && (
+              <p role="alert" className="text-xs text-destructive">[ERR] {serverError}</p>
+            )}
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={step === 1 || isSubmitting}
+                className="term-btn term-btn-ghost text-xs"
+              >
+                [ ← BACK ]
+              </button>
+
+              {step < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => void goNext()}
+                  disabled={isSubmitting}
+                  className="term-btn text-xs"
+                >
+                  [ NEXT → ]
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isSubmitting || emailState !== 'available' || usernameState !== 'available'}
+                  className="term-btn text-xs"
+                >
+                  {isSubmitting ? '[ CREATING... ]' : '[ CREATE ACCOUNT ]'}
+                </button>
+              )}
             </div>
+          </form>
 
-            <div className="rounded-2xl border border-primary/20 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium">Password strength</p>
-                {passwordStrength > 0 && (
-                  <p className="text-xs text-muted-foreground">{strengthLabels[passwordStrength]}</p>
-                )}
-              </div>
-              <div className="mt-3 h-1.5 rounded-full bg-muted">
-                <div
-                  className={`h-1.5 rounded-full transition-all ${strengthColors[passwordStrength] ?? 'bg-primary'}`}
-                  style={{ width: `${(passwordStrength / 4) * 100}%` }}
-                />
-              </div>
-              <ul className="mt-3 space-y-0.5 text-xs text-muted-foreground">
-                <li>8–16 characters</li>
-                <li>At least one uppercase letter</li>
-                <li>At least one number</li>
-              </ul>
-            </div>
+          <div className="mt-5 border-t border-border pt-4">
+            <p className="text-xs text-muted-foreground">
+              ALREADY REGISTERED?{' '}
+              <Link
+                href="/login"
+                className="text-primary underline-offset-2 hover:underline"
+                style={{ textShadow: 'var(--phosphor-glow)' }}
+              >
+                RUN LOGIN.EXE
+              </Link>
+            </p>
           </div>
-        )}
-
-        {serverError && (
-          <p role="alert" className="text-sm text-destructive">{serverError}</p>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={step === 1 || isSubmitting}
-            className="inline-flex items-center gap-2 rounded-full border border-primary/60 px-5 py-3 text-sm transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-40"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            Back
-          </button>
-
-          {step < 3 ? (
-            <button
-              type="button"
-              onClick={() => void goNext()}
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={isSubmitting || emailState !== 'available' || usernameState !== 'available'}
-              className="rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {isSubmitting ? 'Creating account…' : 'Create account'}
-            </button>
-          )}
         </div>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{' '}
-          <Link href="/login" className="font-medium text-primary underline-offset-2 hover:underline">
-            Log in
-          </Link>
-        </p>
-      </form>
-    </section>
+      </div>
+    </div>
   )
 }

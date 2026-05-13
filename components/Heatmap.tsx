@@ -13,6 +13,13 @@ function getHeatColor(count: number): string {
   return 'var(--heat-3)'
 }
 
+function getHeatChar(count: number): string {
+  if (count === 0) return '░'
+  if (count === 1) return '▒'
+  if (count === 2) return '▓'
+  return '█'
+}
+
 export default function Heatmap(): React.JSX.Element {
   const [entries, setEntries] = useState<HeatmapEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -21,17 +28,13 @@ export default function Heatmap(): React.JSX.Element {
     async function loadHeatmap(): Promise<void> {
       try {
         const response = await fetch('/api/heatmap')
-        if (!response.ok) {
-          setEntries([])
-          return
-        }
+        if (!response.ok) { setEntries([]); return }
         const payload = (await response.json()) as HeatmapEntry[]
         setEntries(payload)
       } finally {
         setIsLoading(false)
       }
     }
-
     void loadHeatmap()
   }, [])
 
@@ -42,7 +45,6 @@ export default function Heatmap(): React.JSX.Element {
     const start = new Date(today)
     start.setDate(today.getDate() - WEEKS * 7)
     start.setDate(start.getDate() - start.getDay())
-
     return Array.from({ length: WEEKS }, (_, w) =>
       Array.from({ length: 7 }, (_, d) => {
         const date = new Date(start)
@@ -54,61 +56,75 @@ export default function Heatmap(): React.JSX.Element {
   }, [entryMap])
 
   return (
-    <section className="rounded-3xl border border-primary px-5 py-4">
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Activity</p>
-          <h2 className="mt-0.5 text-base font-semibold">Login heatmap</h2>
+    <section className="term-window flex flex-col">
+      <div className="term-titlebar">
+        <div className="term-titlebar-dots">
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
         </div>
-        <div className="text-xs text-muted-foreground">
-          {isLoading ? 'Loading…' : `${entries.length} active days`}
-        </div>
+        <span>ACTIVITY_LOG.DAT</span>
+        <span className="ml-auto text-[10px]">
+          {isLoading ? 'LOADING...' : `${entries.length} ACTIVE DAYS`}
+        </span>
       </div>
 
-      <div className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex min-w-max gap-1">
-          {/* Day labels */}
-          <div className="mr-1 flex flex-col gap-0.5">
-            <div className="h-4" />
-            {DAY_LABELS.map((label, i) => (
-              <div key={i} className="flex h-2.5 w-6 items-center text-[10px] text-muted-foreground">
-                {label}
-              </div>
-            ))}
-          </div>
+      <div className="p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-primary text-xs" style={{ textShadow: 'var(--phosphor-glow)' }}>&gt; </span>
+          <h2 className="text-sm">LOGIN HEATMAP</h2>
+        </div>
 
-          {/* Week columns */}
-          {weeks.map((week, wi) => {
-            const showMonth = wi === 0 || week[0].month !== weeks[wi - 1][0].month
-            return (
-              <div key={wi} className="flex flex-col gap-0.5">
-                <div className="h-4 whitespace-nowrap text-[10px] text-muted-foreground">
-                  {showMonth ? new Date(week[0].dateKey).toLocaleString('default', { month: 'short' }) : ''}
+        <div className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max gap-px">
+            {/* Day labels */}
+            <div className="mr-1 flex flex-col gap-px">
+              <div className="h-4" />
+              {DAY_LABELS.map((label, i) => (
+                <div key={i} className="flex h-2.5 w-7 items-center text-[9px] text-muted-foreground">
+                  {label}
                 </div>
-                {week.map(({ dateKey, count }) => (
-                  <div
-                    key={dateKey}
-                    title={`${dateKey}: ${count} login${count !== 1 ? 's' : ''}`}
-                    className="h-2.5 w-2.5 rounded-sm"
-                    style={{ backgroundColor: getHeatColor(count) }}
-                  />
-                ))}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+              ))}
+            </div>
 
-      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-        <span>Less</span>
-        {[0, 1, 2, 3].map((level) => (
-          <span
-            key={level}
-            className="h-2.5 w-2.5 rounded-sm"
-            style={{ backgroundColor: getHeatColor(level) }}
-          />
-        ))}
-        <span>More</span>
+            {/* Week columns */}
+            {weeks.map((week, wi) => {
+              const showMonth = wi === 0 || week[0].month !== weeks[wi - 1][0].month
+              return (
+                <div key={wi} className="flex flex-col gap-px">
+                  <div className="h-4 whitespace-nowrap text-[9px] text-muted-foreground">
+                    {showMonth ? new Date(week[0].dateKey).toLocaleString('default', { month: 'short' }).toUpperCase() : ''}
+                  </div>
+                  {week.map(({ dateKey, count }) => (
+                    <div
+                      key={dateKey}
+                      title={`${dateKey}: ${count} login${count !== 1 ? 's' : ''}`}
+                      className="h-2.5 w-2.5 text-[8px] leading-none"
+                      style={{ backgroundColor: getHeatColor(count) }}
+                      aria-label={`${dateKey}: ${count} logins`}
+                    />
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground">
+          <span>LESS</span>
+          {[0, 1, 2, 3].map((level) => (
+            <span
+              key={level}
+              className="font-mono text-xs"
+              style={{ color: getHeatColor(level), textShadow: level > 1 ? 'var(--phosphor-glow)' : 'none' }}
+              aria-hidden="true"
+            >
+              {getHeatChar(level)}
+            </span>
+          ))}
+          <span>MORE</span>
+        </div>
       </div>
     </section>
   )

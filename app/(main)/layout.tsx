@@ -1,4 +1,5 @@
 import NavBar from '@/components/NavBar'
+import TimerPip from '@/components/TimerPip'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 
 interface MainLayoutProps {
@@ -14,6 +15,7 @@ export default async function MainLayout({ children }: MainLayoutProps): Promise
     <div className="min-h-screen bg-background text-foreground">
       <NavBar username={username} />
       <main>{children}</main>
+      <TimerPip />
     </div>
   )
 }

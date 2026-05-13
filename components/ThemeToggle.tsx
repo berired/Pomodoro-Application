@@ -1,6 +1,5 @@
 'use client'
 
-import { Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export default function ThemeToggle(): React.JSX.Element {
@@ -23,11 +22,12 @@ export default function ThemeToggle(): React.JSX.Element {
   return (
     <button
       type="button"
-      aria-label="Toggle theme"
+      aria-label={isDark ? 'Switch to amber phosphor' : 'Switch to green phosphor'}
       onClick={toggleTheme}
-      className="inline-flex items-center justify-center rounded-full border border-primary p-2 transition-colors hover:bg-primary hover:text-primary-foreground"
+      className="term-btn term-btn-ghost px-2 py-1 text-xs"
+      title={isDark ? 'Amber phosphor mode' : 'Green phosphor mode'}
     >
-      {isDark ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
+      {isDark ? '[AMB]' : '[GRN]'}
     </button>
   )
 }
