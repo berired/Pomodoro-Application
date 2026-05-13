@@ -3,6 +3,7 @@ import { VT323, Share_Tech_Mono } from 'next/font/google'
 import './globals.css'
 import ThemeProvider from '@/components/ThemeProvider'
 import { TimerProvider } from '@/contexts/TimerContext'
+import { SpotifyProvider } from '@/contexts/SpotifyContext'
 
 const vt323 = VT323({
   variable: '--font-display',
@@ -46,7 +47,9 @@ export default function RootLayout({
       </head>
       <body className={`${vt323.variable} ${shareTechMono.variable}`}>
         <ThemeProvider>
-          <TimerProvider>{children}</TimerProvider>
+          <SpotifyProvider>
+            <TimerProvider>{children}</TimerProvider>
+          </SpotifyProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,15 +1,17 @@
 # Pomodoro App
 
-A student productivity web app built with Next.js 15, Supabase, and the Spotify Web Playback SDK.
+A student productivity web app built with Next.js 15, Supabase, and the Spotify Web Playback SDK. Styled as a 90s CRT terminal — phosphor green on black, ASCII borders, scanline effects.
 
 ## Features
 
-- **Pomodoro timer** — focus sessions with customizable work/break intervals
+- **Pomodoro timer** — focus/break sessions with customizable intervals and a PC-speaker alarm on completion
+- **PiP timer** — floating draggable timer widget that appears when the timer is running and you navigate away; disappears when you return home
+- **Spotify Web Player** — browse playlists, control playback, and keep music running while switching pages (state persists across navigation)
 - **Task & class management** — schedule tasks and recurring classes with a calendar view
-- **Spotify Web Player** — browse playlists and control playback directly in the app without opening Spotify
 - **Canvas LMS integration** — pull upcoming assignments from Canvas
-- **Login activity heatmap** — visualize study consistency over time
+- **Login activity heatmap** — visualize study consistency over 52 weeks
 - **Authentication** — email/password auth via Supabase
+- **Ambient sound** — synthesized PC fan/HDD whirr on the landing page (Web Audio API, no audio files)
 
 ## Tech Stack
 
@@ -19,6 +21,7 @@ A student productivity web app built with Next.js 15, Supabase, and the Spotify 
 | Styling | Tailwind CSS v4 |
 | Database & Auth | Supabase (Postgres + Auth) |
 | Music | Spotify Web API + Web Playback SDK |
+| Audio | Web Audio API (synthesized) |
 | Deployment | Vercel |
 
 ## Local Development

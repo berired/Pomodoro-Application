@@ -8,6 +8,7 @@ import AmbientSound from '@/components/AmbientSound'
 
 const features = [
   { cmd: 'pomodoro',  desc: 'Structured 25/5 focus and break cycles.' },
+  { cmd: 'pip-timer', desc: 'Floating draggable timer persists across pages.' },
   { cmd: 'spotify',   desc: 'Music controls and playlist access.' },
   { cmd: 'schedule',  desc: 'Weekly class block grid for fast planning.' },
   { cmd: 'heatmap',   desc: 'Visualise study login streaks over 52 weeks.' },
@@ -40,7 +41,7 @@ function LandingPage(): React.JSX.Element {
               STUDYTERM v2.0  ·  Student Productivity Terminal  ·  All rights reserved
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Copyright (C) 2024  ·  Memory OK  ·  Modules loaded: 6/6
+              Copyright (C) 2024  ·  Memory OK  ·  Modules loaded: 7/7
             </p>
           </div>
         </div>
@@ -121,7 +122,7 @@ function LandingPage(): React.JSX.Element {
                 ))}
               </div>
               <p className="mt-4 text-[10px] text-muted-foreground">
-                6 modules found. Type <span className="text-primary">LOGIN</span> or <span className="text-primary">REGISTER</span> to continue.
+                7 modules found. Type <span className="text-primary">LOGIN</span> or <span className="text-primary">REGISTER</span> to continue.
                 <span
                   className="ml-0.5 inline-block text-primary"
                   style={{ animation: 'blink 1s step-end infinite', textShadow: 'var(--phosphor-glow)' }}
