@@ -8,7 +8,7 @@ export default function Footer(): React.JSX.Element {
           © {new Date().getFullYear()} David Xander Wagan
         </span>
         {' '}
-        <span className="text-primary opacity-40">//</span>
+        <span className="text-primary opacity-40">{'// '}</span>
         {' '}
         <span className="text-xs opacity-50">All rights reserved</span>
         {' '}

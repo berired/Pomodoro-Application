@@ -139,7 +139,6 @@ export default function AmbientSound(): React.JSX.Element | null {
       window.removeEventListener('touchstart', handler)
       ctxRef.current?.close().catch(() => undefined)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function toggle(): void {
