@@ -25,6 +25,7 @@
 *.pem
 *.png
 *.jpg
+!app/icon.png
 .playwright-mcp/
 
 # debug

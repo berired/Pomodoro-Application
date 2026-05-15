@@ -88,8 +88,20 @@ export default function SpotifyPlayer(): React.JSX.Element {
 
         {/* Not connected */}
         {!loading && !connected && (
-          <div className="term-empty">
-            Connect your Spotify account to use the web player.
+          <div className="border border-dashed border-border p-5 space-y-3">
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p><span className="text-primary opacity-60">&gt;</span> MODULE: SPOTIFY_WEB_PLAYER</p>
+              <p><span className="text-primary opacity-60">&gt;</span> STATUS: <span className="text-destructive">ACCESS DENIED</span></p>
+            </div>
+            <div className="border-t border-border pt-3">
+              <p className="font-[family-name:var(--font-display)] text-primary text-lg tracking-widest">
+                RESTRICTED MODULE
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Spotify Web Player is a <span className="text-primary">limited feature</span>.
+                Authorized access only
+              </p>
+            </div>
           </div>
         )}
 

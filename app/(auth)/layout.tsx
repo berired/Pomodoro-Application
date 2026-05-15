@@ -1,4 +1,5 @@
 import AmbientSound from '@/components/AmbientSound'
+import Footer from '@/components/Footer'
 
 interface AuthLayoutProps {
   children: React.ReactNode
@@ -6,9 +7,10 @@ interface AuthLayoutProps {
 
 export default function AuthLayout({ children }: AuthLayoutProps): React.JSX.Element {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <AmbientSound />
-      {children}
-    </main>
+      <main className="flex-1">{children}</main>
+      <Footer />
+    </div>
   )
 }

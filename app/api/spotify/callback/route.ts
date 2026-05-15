@@ -65,7 +65,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(new URL('/?error=storage_failed', req.url))
     }
 
-    return NextResponse.redirect(new URL('/', req.url))
+    return NextResponse.redirect(new URL('/spotify/connected', req.url))
   } catch {
     return NextResponse.redirect(new URL('/?error=server_error', req.url))
   }
