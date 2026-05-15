@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Plus } from 'lucide-react'
+import { Check, Plus, Trash2 } from 'lucide-react'
 import { useTasks } from '@/hooks/useTasks'
 import type { TaskRow, CreateTaskPayload, UpdateTaskPayload } from '@/types'
 import AddTaskModal from '@/components/AddTaskModal'
@@ -71,6 +71,14 @@ export default function UserTodoList(): React.JSX.Element {
                   </button>
                   <p className="mt-1 text-sm text-muted-foreground">{taskItem.date}</p>
                 </div>
+                <button
+                  type="button"
+                  aria-label="Delete task"
+                  onClick={() => void handleDeleteTask(taskItem.id)}
+                  className="mt-0.5 rounded-full p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
               </article>
             ))
           : null}

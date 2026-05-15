@@ -9,8 +9,8 @@ const createTaskSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   date: z.string().min(1, 'Date is required'),
   all_day: z.boolean().default(false),
-  start_time: z.string().optional(),
-  end_time: z.string().optional(),
+  start_time: z.string().nullable().optional(),
+  end_time: z.string().nullable().optional(),
 })
 
 export async function GET(_req: NextRequest): Promise<NextResponse> {

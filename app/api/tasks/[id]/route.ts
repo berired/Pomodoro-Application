@@ -9,8 +9,8 @@ const updateTaskSchema = z.object({
   title: z.string().optional(),
   date: z.string().optional(),
   all_day: z.boolean().optional(),
-  start_time: z.string().optional(),
-  end_time: z.string().optional(),
+  start_time: z.string().nullable().optional(),
+  end_time: z.string().nullable().optional(),
   completed: z.boolean().optional(),
 })
 

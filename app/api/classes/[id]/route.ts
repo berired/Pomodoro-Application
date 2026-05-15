@@ -11,7 +11,7 @@ const updateClassSchema = z.object({
   end_time: z.string().optional(),
   days: z.array(z.string()).optional(),
   room: z.string().optional(),
-  professor: z.string().optional(),
+  professor: z.string().nullable().optional(),
 })
 
 export async function PATCH(
